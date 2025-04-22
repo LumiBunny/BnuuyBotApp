@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BnuuyBot Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        h1 {
+            text-align: center;
+            color: #343a40;
+            margin-bottom: 20px;
+        }
+        #live-text {
+            padding: 15px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+            min-height: 30px;
+            margin-bottom: 20px;
+            font-style: italic;
+            color: #666;
+        }
+        #conversation {
+            height: 400px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            overflow-y: auto;
+            padding: 15px;
+            margin-bottom: 20px;
+            background-color: white;
+        }
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .transcript-item {
+            padding: 12px;
+            background-color: #e6f7ff;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #1890ff;
+        }
+        .bunny-item {
+            padding: 12px;
+            background-color: #f0f4c3;  /* Light yellow/green for bot responses */
+            margin-bottom: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #8bc34a;  /* Green border */
+        }
+        .time {
+            font-size: 0.8em;
+            color: #999;
+            text-align: right;
+            margin-top: 5px;
+        }
+        #status {
+            text-align: center;
+            font-style: italic;
+            color: #666;
+            margin-bottom: 15px;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        .status-active {
+            background-color: #28a745;
+        }
+        .status-inactive {
+            background-color: #dc3545;
+        }
+        .section-title {
+            font-size: 1.2em;
+            margin-top: 25px;
+            margin-bottom: 10px;
+            color: #555;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>Live Transcription with BunnyCompletions</h1>
+    
+    <div id="live-text">
+        {% if is_active %}
+            {{ current }}
+        {% else %}
+            Waiting for transcription to start...
+        {% endif %}
+    </div>
+    
+    <div id="status">
+        <div>
+            Transcription: 
+            <span class="status-indicator {% if is_active %}status-active{% else %}status-inactive{% endif %}"></span>
+            {% if is_active %}Active{% else %}Inactive{% endif %}
+        </div>
+    </div>
+    
+    <div class="controls">
+        <form id="start-form" action="/start" method="post" style="display: inline;">
+            <button type="submit" style="background-color: #28a745; color: white;" {% if is_active %}disabled{% endif %}>
+                Start Listening
+            </button>
+        </form>
+        
+        <form id="stop-form" action="/stop" method="post" style="display: inline;">
+            <button type="submit" style="background-color: #dc3545; color: white;" {% if not is_active %}disabled{% endif %}>
+                Stop Listening
+            </button>
+        </form>
+        
+        <form id="clear-form" action="/clear" method="post" style="display: inline;">
+            <button type="submit" style="background-color: #0d6efd; color: white;">
+                Clear History
+            </button>
+        </form>
+    </div>
+    
+    <div class="section-title">Conversation</div>
+    <div id="conversation">
+        {% if history or llm_responses %}
+            <!-- We'll build this dynamically with JavaScript -->
+        {% else %}
+            <p>No conversation history yet. Start speaking to begin.</p>
+        {% endif %}
+    </div>
+
+    <script>
+        // Function to update the UI with new data
+        function updateUI(data) {
+            // Update live text
+            const liveTextDiv = document.getElementById('live-text');
+            if (data.is_active) {
+                liveTextDiv.textContent = data.current_text || "Listening...";
+            } else {
+                liveTextDiv.textContent = "Waiting for transcription to start...";
+            }
+            
+            // Update status indicators
+            const transcriptionStatus = document.querySelectorAll('#status div')[0];
+            
+            transcriptionStatus.innerHTML = `Transcription: 
+                <span class="status-indicator ${data.is_active ? 'status-active' : 'status-inactive'}"></span>
+                ${data.is_active ? 'Active' : 'Inactive'}`;
+            
+            // Combine history and LLM responses into a single timeline
+            const conversationDiv = document.getElementById('conversation');
+            
+            if ((data.history && data.history.length > 0) || (data.llm_responses && data.llm_responses.length > 0)) {
+                // Create a combined timeline of user messages and bot responses
+                let combined = [];
+                
+                // Add user messages with type
+                if (data.history) {
+                    data.history.forEach(item => {
+                        combined.push({
+                            text: item.text,
+                            time: item.time,
+                            type: 'user'
+                        });
+                    });
+                }
+                
+                // Add bot responses with type
+                if (data.llm_responses) {
+                    data.llm_responses.forEach(item => {
+                        combined.push({
+                            text: item.text,
+                            time: item.time,
+                            type: 'bot'
+                        });
+                    });
+                }
+                
+                // Sort by time
+                combined.sort((a, b) => {
+                    return a.time.localeCompare(b.time);
+                });
+                
+                // Clear and rebuild the conversation
+                conversationDiv.innerHTML = '';
+                combined.forEach(function(item) {
+                    const itemDiv = document.createElement('div');
+                    
+                    if (item.type === 'user') {
+                        itemDiv.className = 'transcript-item';
+                    } else {
+                        itemDiv.className = 'bunny-item';
+                    }
+                    
+                    const textContent = document.createTextNode(item.text);
+                    itemDiv.appendChild(textContent);
+                    
+                    const timeDiv = document.createElement('div');
+                    timeDiv.className = 'time';
+                    timeDiv.textContent = item.time;
+                    itemDiv.appendChild(timeDiv);
+                    
+                    conversationDiv.appendChild(itemDiv);
+                });
+                
+                // Scroll to bottom
+                conversationDiv.scrollTop = conversationDiv.scrollHeight;
+            } else {
+                conversationDiv.innerHTML = '<p>No conversation history yet. Start speaking to begin.</p>';
+            }
+            
+            // Update buttons
+            const startButton = document.querySelector('button[form="start-form"]');
+            const stopButton = document.querySelector('button[form="stop-form"]');
+            
+            startButton.disabled = data.is_active;
+            stopButton.disabled = !data.is_active;
+            
+            // Make sure button styles are maintained even after updates
+            if (startButton) {
+                startButton.style.backgroundColor = '#28a745';
+                startButton.style.color = 'white';
+            }
+            
+            if (stopButton) {
+                stopButton.style.backgroundColor = '#dc3545';
+                stopButton.style.color = 'white';
+            }
+        }
+        
+        // Function to fetch updates from the server
+        function fetchUpdates() {
+            fetch('/update')
+                .then(response => response.json())
+                .then(data => {
+                    updateUI(data);
+                })
+                .catch(error => {
+                    console.error('Error fetching updates:', error);
+                });
+        }
+        
+        // Update the UI every 500ms
+        let updateInterval;
+        
+        function startUpdates() {
+            updateInterval = setInterval(fetchUpdates, 500);
+        }
+        
+        // Start the update interval when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            startUpdates();
+            fetchUpdates(); // Initial fetch
+            setupStreaming(); // Add this line to start streaming
+        });
+
+        // Add this new function for streaming responses
+        // Add this new function for streaming responses
+        function setupStreaming() {
+            const source = new EventSource('/stream');
+            const conversationDiv = document.getElementById('conversation');
+            let currentStreamingDiv = null;
+            
+            source.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                
+                // If this is new text and we don't have a streaming div yet, create one
+                if (data.text && !currentStreamingDiv) {
+                    // Create a div with the same class as regular AI responses
+                    currentStreamingDiv = document.createElement('div');
+                    // Use the same class as your regular AI messages (green box)
+                    currentStreamingDiv.className = 'bunny-item';
+                    currentStreamingDiv.innerHTML = `
+                        <div class="transcript-content">${data.text}</div>
+                        <div class="time">${new Date().toLocaleTimeString()}</div>
+                    `;
+                    conversationDiv.appendChild(currentStreamingDiv);
+                    conversationDiv.scrollTop = conversationDiv.scrollHeight;
+                }
+                
+                // Append new text to the streaming content
+                if (data.text && currentStreamingDiv) {
+                    const contentDiv = currentStreamingDiv.querySelector('.transcript-content');
+                    contentDiv.textContent += data.text;
+                    conversationDiv.scrollTop = conversationDiv.scrollHeight;
+                }
+                
+                // If complete, just close the connection and prepare for next message
+                if (data.complete) {
+                    source.close();
+                    currentStreamingDiv = null;
+                    // Reconnect for the next response
+                    setTimeout(setupStreaming, 1000);
+                }
+            };
+            
+            source.onerror = function() {
+                source.close();
+                // Try to reconnect
+                setTimeout(setupStreaming, 5000);
+            };
+        }
+    </script>
+</body>
+</html>
