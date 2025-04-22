@@ -4,7 +4,7 @@ This project is a AI virtual assistant chatbot that uses speech recognition, tex
 
 The project was a way for me to get back into learning coding again by learning how to use Python and studying the general functions and usage of LLMs within NLP. The project has slowly become a hybrid study on the use and understanding of the English language just as much as it is the study of LLMs.
 
-## Version 0.1.0 Notes 📝 (April 21, 2025): Initial release of the app. Very basic but stable.
+## Version 0.1.0 Notes 📝 (April 21, 2025): Initial release of the app. Very basic, but stable.
 
 ### Features 🎉
 
