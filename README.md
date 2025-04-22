@@ -1,20 +1,20 @@
 # BunnyBot 🐰💕✨
-***
+
 This project is a AI virtual assistant chatbot that uses speech recognition, text-to-speech, and voice activation detection to have a conversation with you. It is locally hosted and uses an open source LLM using `LM Studio`, `faster-whisper` for speech-to-text, and `openai-edge-tts` for text-to-speech and `Flask` for the web interface in a browser.
 
 The project was a way for me to get back into learning coding again by learning how to use Python and studying the general functions and usage of LLMs within NLP. The project has slowly become a hybrid study on the use and understanding of the English language just as much as it is the study of LLMs.
 
 ## Version 0.1.0 Notes 📝 (April 21, 2025): Initial release of the app. Very basic but stable.
-***
+
 ### Features 🎉
-***
+
 + **Speech to Text**: Transcribes audio from a microphone into text using the `faster-whisper` library.
 + **Text to Speech**: Converts text into speech using the `openai-edge-tts` library.
 + **Voice Activated Detection**: The LLM self-prompts and tries to carry the conversation alone to avoid awkward silence, but will not self prompt if the user is speaking. Transcription only happens when VAD occurs.
 + **Web Interface**: The web interface with `Flask` allows users to see the transcription and read to the reply in real-time in a browser window. Also gives you buttons to turn transcription/mic on/off, and clear the conversation in the browser window. (Does not delete conversation history with the LLM, you'd need to restart the app for that.)
-***
+
 ### Future Features 🚀
-***
+
 There are many features I plan to add to this app in the future, with no specific timeline in mind. There are many things to learn, and the order in which features are developed and released is not set in stone, nor will any features be guaranteed to be added, released, or kept in the future.
 
 Some of the features I plan to add include:
