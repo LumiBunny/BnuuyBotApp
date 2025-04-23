@@ -4,9 +4,10 @@ from tts_module import TTSEngine
 from bunnyCompletions import BunnyCompletions
 from chat_history import ChatHistory
 from self_prompt import ConversationPrompter
+from voice_commands import VoiceCommandManager
 import time
-import json
 import logging
+import json
 
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
@@ -16,7 +17,7 @@ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Disable caching
 stt = SpeechToText(
     model_size="small",
     device="cuda",
-    compute_type="float32"
+    compute_type="float16"
 )
 
 chat_history = ChatHistory(
@@ -24,6 +25,7 @@ chat_history = ChatHistory(
 )
 
 tts = TTSEngine(voice="en-US-AnaNeural", speed=1.15)
+tts.start()
 
 bunny = BunnyCompletions(
     server_api_host="192.168.2.47:1234", 
@@ -33,7 +35,10 @@ bunny = BunnyCompletions(
 )
 
 prompter = ConversationPrompter(bunny, min_seconds=10, max_seconds=30, tts_engine=tts)
+bunny.prompter = prompter
+voice_manager = VoiceCommandManager()
 
+tts.set_prompter(prompter)
 stt.on_voice_activity_started = prompter.on_voice_activity_started
 stt.on_voice_activity_ended = prompter.on_voice_activity_ended
 
@@ -60,15 +65,23 @@ def reset_application_state():
         
     print("\n[INFO] Application state reset to defaults")
 
+# In app.py
 def handle_final_result(text):
     global transcription_history, current_text
     timestamp = time.strftime("%H:%M:%S")
-    transcription_history.append({"text": text, "time": timestamp})
-    current_text = "Waiting for speech..."
-    print(f"\n[FINAL] {text}")
     
-    if text.strip():  # Only process non-empty text
-        bunny.add_to_queue(text)
+    print(f"Final: {text}")
+    
+    if text and text.strip():
+        if not any(item["text"] == text for item in transcription_history):
+            transcription_history.append({"text": text, "time": timestamp})
+        
+        processed_text, is_command = voice_manager.process_input(text)
+        
+        if not is_command:
+            bunny.add_to_queue(processed_text)
+        
+        current_text = ""
 
 def handle_stream_fragment(fragment):
     global current_stream
@@ -77,7 +90,11 @@ def handle_stream_fragment(fragment):
 def handle_completion(text):
     global llm_responses, current_stream
     timestamp = time.strftime("%H:%M:%S")
-    llm_responses.append({"text": text, "time": timestamp})
+    
+    # Check if this message is already in llm_responses to prevent duplicates
+    if not any(response["text"] == text for response in llm_responses):
+        llm_responses.append({"text": text, "time": timestamp})
+    
     current_stream["complete"] = True
 
 stt.on_final_result = handle_final_result
@@ -121,24 +138,6 @@ def stop():
     
     return redirect(url_for('index'))
 
-@app.route('/clear', methods=['POST'])
-def clear():
-    global transcription_history, llm_responses
-    # Clear only the visual history
-    transcription_history = []
-    llm_responses = []
-    print("\n[INFO] Visual history cleared, but AI chat context remains")
-    return redirect(url_for('index'))
-
-@app.route('/update', methods=['GET'])
-def update():
-    return jsonify({
-        'current_text': current_text,
-        'history': transcription_history,
-        'is_active': is_transcribing,
-        'llm_responses': llm_responses
-    })
-
 @app.route('/stream')
 def stream():
     def generate():
@@ -162,6 +161,24 @@ def stream():
     
     return Response(stream_with_context(generate()), 
                    mimetype='text/event-stream')
+
+@app.route('/clear', methods=['POST'])
+def clear():
+    global transcription_history, llm_responses
+    # Clear only the visual history
+    transcription_history = []
+    llm_responses = []
+    print("\n[INFO] Visual history cleared, but AI chat context remains")
+    return redirect(url_for('index'))
+
+@app.route('/update', methods=['GET'])
+def update():
+    return jsonify({
+        'current_text': current_text,
+        'history': transcription_history,
+        'is_active': is_transcribing,
+        'llm_responses': llm_responses
+    })
 
 if __name__ == '__main__':
     print("\n" + "="*50)
