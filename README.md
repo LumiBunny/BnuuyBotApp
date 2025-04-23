@@ -36,7 +36,7 @@ I have integrated the very bare bones of a module for the management and usage o
 And other general minor edits and bug fixes.
 
 ## Version 0.1.0 Notes 📝 (April 21, 2025): Initial release of the app. Very basic but stable.
-
+***
 ### Features 🎉
 
 + **Speech to Text**: Transcribes audio from a microphone into text using the `faster-whisper` library.
