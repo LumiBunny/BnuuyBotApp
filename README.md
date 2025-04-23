@@ -1,20 +1,51 @@
 # BunnyBot 🐰💕✨
-***
+
 This project is a AI virtual assistant chatbot that uses speech recognition, text-to-speech, and voice activation detection to have a conversation with you. It is locally hosted and uses an open source LLM using `LM Studio`, `faster-whisper` for speech-to-text, and `openai-edge-tts` for text-to-speech and `Flask` for the web interface in a browser.
 
 The project was a way for me to get back into learning coding again by learning how to use Python and studying the general functions and usage of LLMs within NLP. The project has slowly become a hybrid study on the use and understanding of the English language just as much as it is the study of LLMs.
 
+## Version 0.2.1 Notes 📝 (April 22, 2023): Voice commands!
+
+### Adding Voice Commands! 🔊
+I have integrated the very bare bones of a module for the management and usage of **voice commands** for my virtual assistant. So far, I have only added the ability to use some phrases to get the attention of the chatbot via using the command as a part of prompt engineering.
+
+#### Some of the phrases:
++ Hey Bunny
++ Okay Bunny
++ Bunny
++ Hey Bun Bun
++ and a few more
+
+### Bug Fixes 🐛
+
+#### STT and TTS Improvements:
++ Removed text streaming for both live transcriptions via STT as well as the live streaming text from the LLM response to reduce latency.
++ Optimized STT settings to reduce lag and latency when transcribing longer audio. 
++ Made sure TTS queue does not cut off currently playing audio and bump up the next item in queue.
++ Optimized the VAD settings to wait 1.5 seconds of silence before deciding to send transctription to the LLM. (Was too hasty.)
++ Added a confidence filter for STT to significantly reduce the amount of "false positives" where it mistakens white noise for speech, trying to fill it in with "Thank you.", "Thank you for watching", etc.
+
+#### Self Prompt Fixes:
++ Fixed the self prompt timer for the LLM so it doesn't self prompt when the user is speaking/sound is detected.
++ Fixed the self prompt timer so that it waits for audio to finish playing before restarting.
+
+#### UI Improvements:
++ Removed the unnecessary div box from the HTML.
++ Removed live streaming of text, messages now display once they are done.
+
+And other general minor edits and bug fixes.
+
 ## Version 0.1.0 Notes 📝 (April 21, 2025): Initial release of the app. Very basic but stable.
-***
+
 ### Features 🎉
-***
+
 + **Speech to Text**: Transcribes audio from a microphone into text using the `faster-whisper` library.
 + **Text to Speech**: Converts text into speech using the `openai-edge-tts` library.
 + **Voice Activated Detection**: The LLM self-prompts and tries to carry the conversation alone to avoid awkward silence, but will not self prompt if the user is speaking. Transcription only happens when VAD occurs.
 + **Web Interface**: The web interface with `Flask` allows users to see the transcription and read to the reply in real-time in a browser window. Also gives you buttons to turn transcription/mic on/off, and clear the conversation in the browser window. (Does not delete conversation history with the LLM, you'd need to restart the app for that.)
-***
+
 ### Future Features 🚀
-***
+
 There are many features I plan to add to this app in the future, with no specific timeline in mind. There are many things to learn, and the order in which features are developed and released is not set in stone, nor will any features be guaranteed to be added, released, or kept in the future.
 
 Some of the features I plan to add include:
