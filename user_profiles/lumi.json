@@ -1,0 +1,195 @@
+{
+  "user_id": "lumi",
+  "preferences": {
+    "food": [
+      {
+        "type": "likes",
+        "value": "rpg games",
+        "notes": "User expressed likes towards RPG games (via playing)"
+      },
+      {
+        "type": "dislikes",
+        "value": "broccoli",
+        "notes": "User expressed dislikes towards broccoli"
+      },
+      {
+        "type": "likes",
+        "value": "pasta",
+        "notes": "User expressed likes towards pasta"
+      },
+      {
+        "type": "likes",
+        "value": "jazz music",
+        "notes": "User expressed likes towards jazz music (via listening)"
+      }
+    ],
+    "hobbies": [],
+    "interests": [
+      {
+        "type": "dislikes",
+        "value": "broccoli",
+        "notes": "User expressed dislikes towards broccoli",
+        "context": "dislikes broccoli"
+      },
+      {
+        "type": "likes",
+        "value": "pasta",
+        "notes": "User expressed likes towards pasta",
+        "context": "likes pasta"
+      },
+      {
+        "type": "likes",
+        "value": "jazz music",
+        "notes": "User expressed likes towards jazz music (via listening)",
+        "context": "likes jazz music (implied by likes listening jazz music)"
+      }
+    ],
+    "colors": [],
+    "music": [
+      {
+        "type": "likes",
+        "value": "to jazz music",
+        "notes": "User expressed likes towards to jazz music (via listening)",
+        "context": "likes to jazz music"
+      },
+      {
+        "type": "likes",
+        "value": "to jazz music",
+        "notes": "User expressed likes towards to jazz music (via listening)",
+        "context": "likes to jazz music"
+      }
+    ],
+    "movies": [],
+    "general": [
+      {
+        "type": "likes",
+        "value": "rpg games final",
+        "notes": "User expressed likes towards rpg games final (via playing)",
+        "context": "likes rpg games final (implied by likes playing rpg games final)"
+      },
+      {
+        "type": "likes",
+        "value": "games",
+        "notes": "User expressed likes towards games (via playing)",
+        "context": "likes games (implied by likes playing games)"
+      },
+      {
+        "type": "likes",
+        "value": "final fantasy",
+        "notes": "User expressed likes towards final fantasy (via playing)",
+        "context": "likes final fantasy (implied by likes playing final fantasy)"
+      }
+    ],
+    "activity": [
+      {
+        "type": "likes",
+        "value": "playing",
+        "notes": "User expressed likes towards playing RPG games Final"
+      },
+      {
+        "type": "likes",
+        "value": "playing rpg games",
+        "notes": "User expressed likes towards playing RPG games"
+      },
+      {
+        "type": "likes",
+        "value": "listening",
+        "notes": "User expressed likes towards listening jazz music"
+      },
+      {
+        "type": "likes",
+        "value": "playing rpg games final",
+        "notes": "User expressed likes towards playing RPG games Final",
+        "context": "likes playing rpg games final"
+      },
+      {
+        "type": "likes",
+        "value": "listening jazz music",
+        "notes": "User expressed likes towards listening jazz music",
+        "context": "likes listening jazz music"
+      },
+      {
+        "type": "likes",
+        "value": "playing games",
+        "notes": "User expressed likes towards playing games",
+        "context": "likes playing games"
+      },
+      {
+        "type": "likes",
+        "value": "playing final fantasy",
+        "notes": "User expressed likes towards playing Final Fantasy",
+        "context": "likes playing final fantasy"
+      }
+    ],
+    "color": [
+      {
+        "type": "likes",
+        "value": "blue",
+        "notes": "User expressed that Blue is their favorite color"
+      }
+    ],
+    "entertainment": [
+      {
+        "type": "likes",
+        "value": "playing rpg games final",
+        "notes": "User expressed likes towards playing RPG games Final",
+        "context": "likes playing rpg games final"
+      },
+      {
+        "type": "likes",
+        "value": "playing games",
+        "notes": "User expressed likes towards playing games",
+        "context": "likes playing games"
+      },
+      {
+        "type": "likes",
+        "value": "playing final fantasy",
+        "notes": "User expressed likes towards playing Final Fantasy",
+        "context": "likes playing final fantasy"
+      }
+    ],
+    "games": [
+      {
+        "type": "likes",
+        "value": "rpg games final",
+        "notes": "User expressed likes towards RPG games Final (via playing)",
+        "context": "likes rpg games final"
+      },
+      {
+        "type": "likes",
+        "value": "rpg",
+        "notes": "User expressed likes towards RPG",
+        "context": "likes rpg"
+      },
+      {
+        "type": "likes",
+        "value": "games",
+        "notes": "User expressed likes towards games (via playing)",
+        "context": "likes games"
+      },
+      {
+        "type": "likes",
+        "value": "final fantasy",
+        "notes": "User expressed likes towards Final Fantasy",
+        "context": "likes final fantasy"
+      }
+    ],
+    "listening": [
+      {
+        "type": "likes",
+        "value": "listening jazz music",
+        "notes": "User expressed likes towards listening jazz music",
+        "context": "likes listening jazz music"
+      },
+      {
+        "type": "likes",
+        "value": "listening to jazz music",
+        "notes": "User expressed likes towards listening to jazz music",
+        "context": "likes listening to jazz music"
+      }
+    ]
+  },
+  "important_dates": {},
+  "reminders": [],
+  "conversation_history": []
+}
