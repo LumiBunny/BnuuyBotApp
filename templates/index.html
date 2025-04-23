@@ -53,10 +53,10 @@
         }
         .transcript-item {
             padding: 12px;
-            background-color: #e6f7ff;
+            background-color: #e3f2fd;  /* Light blue for user messages */
             margin-bottom: 10px;
             border-radius: 5px;
-            border-left: 4px solid #1890ff;
+            border-left: 4px solid #2196f3;  /* Blue border */
         }
         .bunny-item {
             padding: 12px;
@@ -102,14 +102,6 @@
 <body>
     <h1>Live Transcription with BunnyCompletions</h1>
     
-    <div id="live-text">
-        {% if is_active %}
-            {{ current }}
-        {% else %}
-            Waiting for transcription to start...
-        {% endif %}
-    </div>
-    
     <div id="status">
         <div>
             Transcription: 
@@ -150,13 +142,9 @@
     <script>
         // Function to update the UI with new data
         function updateUI(data) {
-            // Update live text
-            const liveTextDiv = document.getElementById('live-text');
-            if (data.is_active) {
-                liveTextDiv.textContent = data.current_text || "Listening...";
-            } else {
-                liveTextDiv.textContent = "Waiting for transcription to start...";
-            }
+            console.log("Received data:", data);
+            console.log("History:", data.history);
+            console.log("LLM responses:", data.llm_responses);
             
             // Update status indicators
             const transcriptionStatus = document.querySelectorAll('#status div')[0];
@@ -169,6 +157,9 @@
             const conversationDiv = document.getElementById('conversation');
             
             if ((data.history && data.history.length > 0) || (data.llm_responses && data.llm_responses.length > 0)) {
+                // Clear existing content
+                conversationDiv.innerHTML = '';
+                
                 // Create a combined timeline of user messages and bot responses
                 let combined = [];
                 
@@ -199,53 +190,21 @@
                     return a.time.localeCompare(b.time);
                 });
                 
-                // Clear and rebuild the conversation
-                conversationDiv.innerHTML = '';
-                combined.forEach(function(item) {
-                    const itemDiv = document.createElement('div');
-                    
-                    if (item.type === 'user') {
-                        itemDiv.className = 'transcript-item';
-                    } else {
-                        itemDiv.className = 'bunny-item';
-                    }
-                    
-                    const textContent = document.createTextNode(item.text);
-                    itemDiv.appendChild(textContent);
-                    
-                    const timeDiv = document.createElement('div');
-                    timeDiv.className = 'time';
-                    timeDiv.textContent = item.time;
-                    itemDiv.appendChild(timeDiv);
-                    
-                    conversationDiv.appendChild(itemDiv);
+                // Render each message with the appropriate class
+                combined.forEach(item => {
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = item.type === 'user' ? 'transcript-item' : 'bunny-item';
+                    messageDiv.innerHTML = `
+                        <div class="transcript-content">${item.text}</div>
+                        <div class="time">${item.time}</div>
+                    `;
+                    conversationDiv.appendChild(messageDiv);
                 });
                 
-                // Scroll to bottom
+                // Scroll to the bottom
                 conversationDiv.scrollTop = conversationDiv.scrollHeight;
-            } else {
-                conversationDiv.innerHTML = '<p>No conversation history yet. Start speaking to begin.</p>';
-            }
-            
-            // Update buttons
-            const startButton = document.querySelector('button[form="start-form"]');
-            const stopButton = document.querySelector('button[form="stop-form"]');
-            
-            startButton.disabled = data.is_active;
-            stopButton.disabled = !data.is_active;
-            
-            // Make sure button styles are maintained even after updates
-            if (startButton) {
-                startButton.style.backgroundColor = '#28a745';
-                startButton.style.color = 'white';
-            }
-            
-            if (stopButton) {
-                stopButton.style.backgroundColor = '#dc3545';
-                stopButton.style.color = 'white';
             }
         }
-        
         // Function to fetch updates from the server
         function fetchUpdates() {
             fetch('/update')
@@ -268,12 +227,8 @@
         // Start the update interval when the page loads
         document.addEventListener('DOMContentLoaded', function() {
             startUpdates();
-            fetchUpdates(); // Initial fetch
-            setupStreaming(); // Add this line to start streaming
+            fetchUpdates();
         });
-
-        // Add this new function for streaming responses
-        // Add this new function for streaming responses
         function setupStreaming() {
             const source = new EventSource('/stream');
             const conversationDiv = document.getElementById('conversation');
@@ -286,14 +241,12 @@
                 if (data.text && !currentStreamingDiv) {
                     // Create a div with the same class as regular AI responses
                     currentStreamingDiv = document.createElement('div');
-                    // Use the same class as your regular AI messages (green box)
                     currentStreamingDiv.className = 'bunny-item';
                     currentStreamingDiv.innerHTML = `
-                        <div class="transcript-content">${data.text}</div>
+                        <div class="transcript-content"></div>
                         <div class="time">${new Date().toLocaleTimeString()}</div>
                     `;
                     conversationDiv.appendChild(currentStreamingDiv);
-                    conversationDiv.scrollTop = conversationDiv.scrollHeight;
                 }
                 
                 // Append new text to the streaming content
@@ -317,7 +270,19 @@
                 // Try to reconnect
                 setTimeout(setupStreaming, 5000);
             };
+            source.onerror = function() {
+                source.close();
+                // Try to reconnect
+                setTimeout(setupStreaming, 5000);
+            };
         }
+        
+        // Make sure to call setupStreaming in your DOMContentLoaded event
+        document.addEventListener('DOMContentLoaded', function() {
+            startUpdates();
+            fetchUpdates(); // Initial fetch
+            setupStreaming(); // Add this line to start streaming
+        });
     </script>
 </body>
 </html>

@@ -15,8 +15,6 @@ class BunnyCompletions:
         self.is_processing = False
         self.processing_lock = threading.Lock()
         self.pending_text = None  # Store the pending text here
-        
-        
         self._initialize_client()
         
         if chat_history:
@@ -83,7 +81,6 @@ class BunnyCompletions:
                     self.work_queue.put(("USER", text))
                 return True
     
-    # In bunnyCompletions.py
     def _process_queue(self):
         while self.is_running:
             try:
@@ -122,10 +119,11 @@ class BunnyCompletions:
             if self.on_completion and full_response:
                 self.on_completion(full_response)
             
+            if self.tts and full_response:
+                self.tts.add_to_queue(full_response)
+            
             print(f"[BUNNY FINAL] {full_response}")
             
-            self.tts.speak(full_response)
-    
             return full_response
                 
         except Exception as e:

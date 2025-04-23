@@ -6,11 +6,20 @@ import queue
 import threading
 import struct
 import time
-import sys
 
 class SpeechToText:
-    def __init__(self, model_size="small", device="cuda", compute_type="float32", 
-                 streaming_interval=0.3, vad_aggressiveness=3, language="en"):
+    def __init__(self,
+                 model_size="small",
+                 device="cuda",
+                 compute_type="float16",
+                 streaming_interval=0.3,
+                 vad_aggressiveness=2,
+                 silence_threshold=1.0,
+                 frame_duration_ms=30,
+                 padding_duration_ms=300,
+                 language="en",
+                 prompter=None
+                 ):
         self.model = WhisperModel(
             model_size, 
             device=device, 
@@ -22,6 +31,9 @@ class SpeechToText:
         self.vad_frame_ms = 30
         self.vad = webrtcvad.Vad(vad_aggressiveness)
         self.language = language
+        self.prompter = None
+        if prompter:
+            self.set_prompter(prompter)
         
         self.audio_queue = queue.Queue()
         
@@ -31,6 +43,9 @@ class SpeechToText:
         self.current_transcript = ""
         self.last_update_time = 0
         self.streaming_interval = streaming_interval
+        self.silence_threshold = silence_threshold
+        self.frame_duration_ms = frame_duration_ms
+        self.padding_duration_ms = padding_duration_ms
         
         self.is_running = False
         self.processing_thread = None
@@ -41,23 +56,62 @@ class SpeechToText:
 
     def is_speech(self, frame):
         amplitude = np.max(np.abs(frame))
-        if amplitude < 0.015:
+        if amplitude < 0.03:
             return False
             
         pcm = struct.pack("h" * len(frame), 
                          *[int(s * 32768) for s in frame])
         return self.vad.is_speech(pcm, self.sample_rate)
+    
+    def filter_transcripts_by_confidence(self, text, audio_duration, confidence_threshold=0.6, max_chunk_duration=10.0):
+        print("\n==== ENTERING filter_transcripts_by_confidence ====\n")
+        
+        if audio_duration < 0.75:
+            required_confidence = max(0.8, confidence_threshold)
+        else:
+            required_confidence = confidence_threshold
+        
+        audio_data = self.speech_buffer_to_audio()
+        
+        samples_per_second = self.sample_rate
+        max_samples = int(max_chunk_duration * samples_per_second)
+        
+        if len(audio_data) > max_samples:
+            print(f"Audio too long ({len(audio_data)/samples_per_second:.2f}s), processing only last {max_chunk_duration}s")
+            audio_data = audio_data[-max_samples:]
+        
+        segments = self.model.transcribe(
+            audio_data,
+            beam_size=2,
+            language=self.language,
+            vad_filter=False,
+            word_timestamps=True
+        )
+        
+        segments_list = list(segments)
+        if not segments_list:
+            print("No segments found in transcription")
+            return ""
+        
+        avg_confidence = sum(segment.avg_logprob for segment in segments_list) / len(segments_list)
+        normalized_confidence = min(1.0, max(0.0, (avg_confidence + 4) / 4))  # Normalize from log prob
+        
+        print(f"\nDEBUG: Transcript confidence: {normalized_confidence:.2f} - '{text}'\n")
+        
+        if normalized_confidence >= required_confidence:
+            return text
+        else:
+            print(f"Rejected transcript (confidence: {normalized_confidence:.2f} < {required_confidence:.2f})")
+            return ""
+    
+    def speech_buffer_to_audio(self):
+        if not self.speech_buffer:
+            return np.array([])
+        return np.concatenate(self.speech_buffer)
 
     def default_display(self, text, is_final=False):
-        sys.stdout.write("\r" + " " * 100)
-        sys.stdout.write("\r")
-        
         if is_final:
-            sys.stdout.write(f"Final: {text}\n")
-        else:
-            sys.stdout.write(f"Live: {text}")
-        
-        sys.stdout.flush()
+            print(f"Final: {text}")
 
     def process_audio_queue(self):
         print("Listening for speech... (Press Ctrl+C to stop)")
@@ -95,7 +149,8 @@ class SpeechToText:
                             
                             interim_text = "".join(segment.text for segment in segments).strip()
                             
-                            if interim_text != "ლლლ" not in interim_text:
+                            # Fixed condition: Check if text is valid
+                            if interim_text and "ლლლ" not in interim_text:
                                 if self.on_interim_result:
                                     self.on_interim_result(interim_text)
                                 else:
@@ -107,7 +162,7 @@ class SpeechToText:
                         if self.is_speaking:
                             self.silence_frames += 1
                             
-                            if self.silence_frames >= 15:
+                            if self.silence_frames >= 50:
                                 self.is_speaking = False
                                 
                                 if len(self.speech_buffer) > 0:
@@ -121,7 +176,8 @@ class SpeechToText:
                                     
                                     final_text = "".join(segment.text for segment in segments).strip()
                                     
-                                    if final_text != "ლლლ" not in final_text:
+                                    # Fixed condition: Check if text is valid
+                                    if final_text and "ლლლ" not in final_text:
                                         if self.on_final_result:
                                             self.on_final_result(final_text)
                                         else:

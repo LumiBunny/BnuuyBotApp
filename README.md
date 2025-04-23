@@ -4,8 +4,39 @@ This project is a AI virtual assistant chatbot that uses speech recognition, tex
 
 The project was a way for me to get back into learning coding again by learning how to use Python and studying the general functions and usage of LLMs within NLP. The project has slowly become a hybrid study on the use and understanding of the English language just as much as it is the study of LLMs.
 
-## Version 0.1.0 Notes 📝 (April 21, 2025): Initial release of the app. Very basic, but stable.
+## Version 0.2.1 Notes 📝 (April 22, 2023): Voice commands!
 
+### Adding Voice Commands! 🔊
+I have integrated the very bare bones of a module for the management and usage of **voice commands** for my virtual assistant. So far, I have only added the ability to use some phrases to get the attention of the chatbot via using the command as a part of prompt engineering.
+
+#### Some of the phrases:
++ Hey Bunny
++ Okay Bunny
++ Bunny
++ Hey Bun Bun
++ and a few more
+
+### Bug Fixes 🐛
+
+#### STT and TTS Improvements:
++ Removed text streaming for both live transcriptions via STT as well as the live streaming text from the LLM response to reduce latency.
++ Optimized STT settings to reduce lag and latency when transcribing longer audio. 
++ Made sure TTS queue does not cut off currently playing audio and bump up the next item in queue.
++ Optimized the VAD settings to wait 1.5 seconds of silence before deciding to send transctription to the LLM. (Was too hasty.)
++ Added a confidence filter for STT to significantly reduce the amount of "false positives" where it mistakens white noise for speech, trying to fill it in with "Thank you.", "Thank you for watching", etc.
+
+#### Self Prompt Fixes:
++ Fixed the self prompt timer for the LLM so it doesn't self prompt when the user is speaking/sound is detected.
++ Fixed the self prompt timer so that it waits for audio to finish playing before restarting.
+
+#### UI Improvements:
++ Removed the unnecessary div box from the HTML.
++ Removed live streaming of text, messages now display once they are done.
+
+And other general minor edits and bug fixes.
+
+## Version 0.1.0 Notes 📝 (April 21, 2025): Initial release of the app. Very basic but stable.
+***
 ### Features 🎉
 
 + **Speech to Text**: Transcribes audio from a microphone into text using the `faster-whisper` library.
