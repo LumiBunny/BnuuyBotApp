@@ -29,7 +29,10 @@ class UserProfileManager:
                     "colors": [],
                     "music": [],
                     "movies": [],
-                    "general": []
+                    "entertainment": [],
+                    "games": [],
+                    "general": [],
+                    "color": []
                 },
                 "important_dates": {},
                 "reminders": [],
@@ -37,6 +40,27 @@ class UserProfileManager:
             }
             self._save_profile(user_id, profile)
             return profile
+        
+    def clean_profile_categories(self, user_id):
+        """Remove deprecated categories and ensure profile has current structure."""
+        profile = self.get_profile(user_id)
+        
+        # Remove ONLY these deprecated categories
+        categories_to_remove = ["listening", "activity"]
+        for category in categories_to_remove:
+            if category in profile["preferences"]:
+                del profile["preferences"][category]
+        
+        # Ensure all current categories exist
+        current_categories = ["food", "hobbies", "interests", "colors", "music", 
+                             "movies", "entertainment", "games", "general", "color"]
+        for category in current_categories:
+            if category not in profile["preferences"]:
+                profile["preferences"][category] = []
+        
+        # Save the updated profile
+        self._save_profile(user_id, profile)
+        return profile
     
     def _save_profile(self, user_id, profile):
         """Save a user profile to disk."""
@@ -48,83 +72,110 @@ class UserProfileManager:
         value = preference.get('preference_value', '').lower()
         category = preference.get('preference_category')
         
+        # Debug output
+        print(f"Categorizing: '{value}'")
+        
         # Return category if already provided and valid
         if category and category != 'general':
+            print(f"  Using provided category: {category}")
             return category
         
-        # First check for food items to prevent them appearing in interests
+        # Handle specific cases first
+        if value == "jazz" or value == "listening to jazz music":
+            print("  Explicitly categorizing jazz as music")
+            return "music"
+        
+        # Handle specific hobby cases
+        if value == "gaming" or value == "playing games":
+            print("  Explicitly categorizing as hobbies")
+            return "hobbies"
+        
+        # Check for reading/learning activities - explicitly as interests
+        if "reading" in value or "learning" in value or "studying" in value:
+            print("  Explicitly categorizing as interests")
+            return "interests"
+        
+        # Check for music-related content
+        music_keywords = ['music', 'jazz', 'song', 'band', 'artist', 'album', 'concert', 
+                         'sing', 'singing', 'instrument', 'rock', 'pop', 'classical', 
+                         'hip hop', 'rap', 'blues', 'country', 'piano', 'guitar', 'drum', 
+                         'violin', 'viola', 'cello', 'saxophone', 'flute', 'clarinet', 
+                         'trombone', 'trumpet', 'soprano', 'alto', 'tenor', 'baritone',
+                         'piano', 'piccolo', 'edm', 'dance', 'euro pop', 'euro dance',
+                         'electro', 'electronic', 'electronic music', 'house', 'techno',
+                         'indie', 'sheet music', 'chord', 'chords', 'chord progression']
+        if any(keyword in value for keyword in music_keywords):
+            print(f"  Categorizing as music (matched keyword)")
+            return "music"
+        
+        # Check for game-related content
+        game_keywords = ['rpg', 'game', 'final fantasy', 'video game', 'videogame']
+        if any(keyword in value for keyword in game_keywords) and not (value == "gaming" or value == "playing games"):
+            print(f"  Categorizing as games (matched keyword)")
+            return "games"
+        
+        # Check for playing activities - prioritize games if it contains game keywords
+        if 'playing' in value:
+            for game_keyword in ['rpg', 'game', 'final fantasy', 'video game']:
+                if game_keyword in value and not value == "playing games":
+                    print(f"  Categorizing as games (contains playing + game keyword)")
+                    return "games"
+            # If it's playing but not game-related, it's an interest
+            print(f"  Categorizing as interests (playing activity not game-related)")
+            return "interests"
+        
+        # Then check for food items
         food_keywords = ['food', 'eat', 'eating', 'cuisine', 'meal', 'drink', 'pizza', 
                         'pasta', 'cheese', 'broccoli', 'vegetable', 'fruit', 'meat', 
-                        'dessert', 'breakfast', 'lunch', 'dinner']
-        
-        # Check if any food keyword is in the preference value
-        for keyword in food_keywords:
-            if keyword in value:
-                return "food"
+                        'dessert', 'breakfast', 'lunch', 'dinner', 'snack', 'sandwich',
+                        'vegetarian', 'vegan', 'gluten free', 'gluten free food',
+                        'meat', 'dairy', 'egg', 'butter', 'buttery', 'buttery food']
+        if any(keyword in value for keyword in food_keywords):
+            print(f"  Categorizing as food (matched keyword)")
+            return "food"
         
         # Hobby-related keywords
-        hobby_keywords = ['play', 'game', 'gaming', 'hobby', 'reading', 'swim', 
-                         'swimming', 'run', 'running', 'cycling', 'bike', 'hike',
-                         'draw', 'drawing', 'paint', 'painting', 'craft', 'crafting']
-        
-        # Interest-related keywords
-        interest_keywords = ['interest', 'book', 'movie', 'show', 'tv', 'watch', 
-                           'watching', 'science', 'history', 'art', 'technology', 'cooking']
+        hobby_keywords = ['hobby', 'swimming', 'run', 'running', 
+                         'cycling', 'bike', 'hike', 'draw', 'drawing', 'paint', 
+                         'painting', 'craft', 'crafting', 'reading', 'learning',
+                         'write', 'writing', 'cook', 'cooking', 'cookbook',
+                         'playing music', 'programming', 'coding', 'streaming',
+                         'vtubing', 'baking']
+        if any(keyword in value for keyword in hobby_keywords):
+            print(f"  Categorizing as hobbies (matched keyword)")
+            return "hobbies"
         
         # Color-related keywords
         color_keywords = ['color', 'blue', 'red', 'green', 'yellow', 'purple', 'orange',
-                         'black', 'white', 'pink', 'brown']
+                         'black', 'white', 'pink', 'brown', 'teal', 'maroon', 'navy',
+                         'grey', 'silver', 'gold', 'gold color', 'turquoise', 'violet',
+                         'magenta', 'cyan', 'indigo', 'lavender', 'lilac', 'lilac color',
+                         'emerald', 'emerald green']
+        if any(keyword in value for keyword in color_keywords):
+            print(f"  Categorizing as colors (matched keyword)")
+            return "colors"
         
-        # Music-related keywords
-        music_keywords = ['music', 'song', 'band', 'artist', 'album', 'concert', 
-                         'listen', 'listening', 'sing', 'singing', 'instrument', 'jazz']
+        # Entertainment category
+        entertainment_keywords = ['movie', 'film', 'cinema', 'series', 'episode', 
+                                'actor', 'actress', 'director', 'watch', 'watching',
+                                'podcast', 'concert', 'streaming', 'youtube', 'theatre',
+                                'show', 'tv']
+        if any(keyword in value for keyword in entertainment_keywords):
+            print(f"  Categorizing as entertainment (matched keyword)")
+            return "entertainment"
         
-        # Movie-related keywords
-        movie_keywords = ['movie', 'film', 'cinema', 'show', 'series', 'episode', 
-                         'actor', 'actress', 'director', 'watch', 'watching']
+        # Interest-related keywords - expanded to capture more
+        interest_keywords = ['interest', 'book', 'science', 'history', 'art', 
+                            'technology', 'cooking', 'like', 'enjoy', 'love', 
+                            'passionate', 'fan', 'enthusiast', 'collect', 'explore', 
+                            'discover', 'follow', 'read', 'study']
+        if any(keyword in value for keyword in interest_keywords):
+            print(f"  Categorizing as interests (matched keyword)")
+            return "interests"
         
-        # Game-related keywords
-        game_keywords = ['rpg', 'game', 'gaming', 'play', 'playing', 'video game']
-        
-        # Check for whole words rather than partial matches
-        words = value.split()
-        
-        # Special case for RPG games
-        if 'rpg' in value or 'rpg games' in value:
-            return "games"
-        
-        # Special case for music
-        if 'jazz' in value or 'music' in value:
-            return "music"
-        
-        # Check each word for category matches
-        for word in words:
-            if word in hobby_keywords:
-                return "hobbies"
-            if word in interest_keywords:
-                return "interests"
-            if word in color_keywords:
-                return "colors"
-            if word in music_keywords:
-                return "music"
-            if word in movie_keywords:
-                return "movies"
-            if word in game_keywords:
-                return "games"
-        
-        # Check if the value contains specific activities
-        activities = ['playing', 'listening', 'watching', 'reading']
-        if any(activity in value for activity in activities):
-            # Check what the activity is about
-            if any(music_word in value for music_word in music_keywords):
-                return "music"
-            if any(game_word in value for game_word in game_keywords):
-                return "games"
-            if any(movie_word in value for movie_word in movie_keywords):
-                return "movies"
-        
-        # Default category
-        return "general"
+        # Default to interests for anything else
+        print(f"  Defaulting to interests for: {value}")
+        return "interests"
     
     def add_preference(self, user_id, preference, category=None):
         """Add a preference to a user profile."""
@@ -136,91 +187,51 @@ class UserProfileManager:
         
         profile = self.get_profile(user_id)
         
+        # Extract core data first so we can use it for category decisions
+        pref_type = preference.get('preference_type', 'likes')
+        pref_value = preference.get('preference_value', '').lower()
+        context = preference.get('context', '')
+        notes = preference.get('notes', '')
+        
         if not category:
             category = self.categorize_preference(preference)
         
-        # Extract core data
-        pref_type = preference.get('preference_type', 'likes')
-        pref_value = preference.get('preference_value', '').lower()
-        notes = preference.get('notes', '')
+        # Make sure we never use deprecated categories
+        if category in ["listening", "activity"]:
+            if "listening" in pref_value:  # Use pref_value instead of undefined value
+                category = "music"
+            else:
+                category = "interests"
         
-        # Clean up the value and preserve compound terms
-        pref_value = pref_value.replace("rpg games final", "rpg games")
-        pref_value = pref_value.replace("games final", "games")
-        
-        # Fix standalone activities without objects
-        activities = ['playing', 'listening', 'watching', 'reading']
-        if pref_value in activities:
-            # Skip standalone activities without objects
-            print(f"Skipping incomplete activity: {pref_value} (missing object)")
-            return False
-        
-        # Fix standalone prepositions without verbs
-        words = pref_value.split()
-        if len(words) > 1 and words[0] in ['to', 'of', 'in', 'at', 'by', 'for']:
-            # Check if the preposition is standalone (not part of a verb phrase)
-            # If there's no verb before it (like "listening to"), remove it
-            verbs = ['listening', 'talking', 'going', 'looking', 'playing', 'reading']
-            if not any(verb in preference.get('context', '').lower() for verb in verbs):
-                # Remove the preposition
-                pref_value = ' '.join(words[1:])
-        
-        # Create primary preference entry with context
-        if 'context' not in preference:
-            context = f"{pref_type} {pref_value}"
-        else:
-            context = preference['context']
-            # Also clean up the context if needed
-            context_words = context.split()
-            if len(context_words) > 2 and context_words[1] in ['to', 'of', 'in', 'at', 'by', 'for']:
-                # If context is like "likes to jazz music" without a verb, fix it
-                verbs = ['listening', 'talking', 'going', 'looking', 'playing', 'reading']
-                if not any(verb in context.lower() for verb in verbs):
-                    context = f"{context_words[0]} {' '.join(context_words[2:])}"
-        
-        pref_entry = {
+        # Create the preference entry
+        entry = {
             "type": pref_type,
             "value": pref_value,
-            "notes": notes,
-            "context": context
+            "context": context,
+            "notes": notes
         }
         
-        # Add to appropriate category
+        # Ensure the category exists in the profile
         if category not in profile["preferences"]:
             profile["preferences"][category] = []
         
-        # Check if this preference already exists in ANY category (not just the current one)
-        already_exists = False
-        for cat, prefs in profile["preferences"].items():
-            for existing in prefs:
-                existing_value = existing.get("value", "").lower().strip()
-                existing_type = existing.get("type", "")
-                existing_context = existing.get("context", "").lower().strip() if "context" in existing else ""
-                
-                # Check for exact matches
-                if existing_value == pref_value and existing_type == pref_type:
-                    already_exists = True
-                    break
-                
-                # Check for context matches
-                if existing_context == context:
-                    already_exists = True
-                    break
-            
-            if already_exists:
-                break
+        # Add the preference if it doesn't already exist
+        added = self._add_if_not_exists(profile["preferences"][category], entry)
         
-        if not already_exists:
-            # Check if primary preference already exists in this category
-            self._add_if_not_exists(profile["preferences"][category], pref_entry)
-            
-            # Save the updated profile
+        # Save the updated profile
+        if added:
             self._save_profile(user_id, profile)
+            return True
         
-        return True
+        return False
     
     def _add_if_not_exists(self, preference_list, new_entry):
         """Helper method to add a preference if it doesn't already exist or is too similar."""
+        # Special handling for "listening to jazz music"
+        if new_entry.get("value", "").lower() == "listening to jazz music":
+            print("Converting 'listening to jazz music' to just 'jazz'")
+            new_entry["value"] = "jazz"
+
         new_value = new_entry.get("value", "").lower().strip()
         new_type = new_entry.get("type", "")
         

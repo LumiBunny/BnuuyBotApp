@@ -219,7 +219,7 @@ class EnhancedPreferenceExtractor:
             
             elif pattern_name == "LOVE_PATTERN":
                 object_name = doc[start+2].text.lower()
-                category = self.categorize_object(object_name)
+                category = self.categorize_preference({'preference_value': object_name})
                 results.append({
                     "original_input": text,
                     "user_id": user_id,
@@ -844,37 +844,69 @@ class EnhancedPreferenceExtractor:
         
         return filtered_results
     
-    def categorize_object(self, object_phrase):
-        """Categorize an object based on keywords"""
-        phrase_lower = object_phrase.lower()
-
-        # Check for specific game titles first
-        if any(title in phrase_lower for title in self.game_titles):
+    def categorize_object(self, object_name):
+        """Categorize an object based on its name."""
+        # Game-related terms
+        game_keywords = ['game', 'rpg', 'gaming', 'final fantasy', 'play']
+        if any(keyword in object_name.lower() for keyword in game_keywords):
             return "games"
         
-        # Check for compound phrases
-        if "rpg games" in phrase_lower or "video games" in phrase_lower:
-            return "games"
-        
-        # Check for individual keywords
-        if any(word in phrase_lower for word in ["game", "gaming", "video game", "rpg"]):
-            return "games"
-        elif any(word in phrase_lower for word in ["movie", "film", "show", "series"]):
-            return "movies"
-        elif any(word in phrase_lower for word in ["music", "song", "album", "band", "artist"]):
+        # Music-related terms
+        music_keywords = ['music', 'jazz', 'song', 'listen']
+        if any(keyword in object_name.lower() for keyword in music_keywords):
             return "music"
-        elif any(word in phrase_lower for word in ["book", "novel", "story", "read"]):
-            return "books"
-        elif any(word in phrase_lower for word in ["food", "eat", "meal", "dish", "cuisine", "dinner", "lunch", "breakfast"]):
+        
+        # Food-related terms
+        food_keywords = ['food', 'broccoli', 'pasta', 'cheese', 'pizza', 'ice cream']
+        if any(keyword in object_name.lower() for keyword in food_keywords):
             return "food"
-        elif any(word in phrase_lower for word in ["color", "colour", "blue", "red", "green", "yellow", "purple", "orange", "black", "white"]):
+        
+        # Color-related terms
+        color_keywords = ['blue', 'red', 'green', 'yellow', 'color']
+        if any(keyword in object_name.lower() for keyword in color_keywords):
             return "colors"
-        elif any(word in phrase_lower for word in ["sport", "exercise", "workout", "fitness", "running", "swimming", "cycling"]):
-            return "sports"
-        elif any(word in phrase_lower for word in ["travel", "trip", "vacation", "destination", "country", "city"]):
-            return "travel"
-        else:
-            return "interests"
+        
+        # Default to general
+        return "general"
+    def categorize_preference(self, preference):
+        """Categorize a preference based on its content."""
+        value = preference.get('preference_value', '').lower()
+        
+        # First identify food items - check for specific food keywords
+        food_keywords = ['broccoli', 'pasta', 'cheese', 'ice cream', 'pizza', 'food', 'eat']
+        if any(keyword in value for keyword in food_keywords):
+            return "food"
+        
+        # Check for color keywords
+        color_keywords = ['blue', 'red', 'green', 'yellow', 'color']
+        if any(keyword in value for keyword in color_keywords):
+            return "colors"
+        
+        # Check for activity verbs
+        if value.startswith("playing ") or value.startswith("listening ") or value.startswith("watching "):
+            return "activity"
+        
+        # Check for music-specific terms
+        music_keywords = ['music', 'jazz', 'song', 'listening to']
+        if any(keyword in value for keyword in music_keywords):
+            return "music"
+        
+        # Check for game-specific terms
+        game_keywords = ['rpg', 'game', 'final fantasy']
+        if any(keyword in value for keyword in game_keywords):
+            return "games"
+        
+        # Entertainment category
+        entertainment_keywords = ['movie', 'show', 'tv', 'film', 'series']
+        if any(keyword in value for keyword in entertainment_keywords):
+            return "entertainment"
+        
+        # If it's just "gaming" (not "playing games"), categorize as hobby
+        if value == "gaming":
+            return "hobbies"
+        
+        # Default to interests
+        return "interests"
         
     def _get_verb_context(self, verb_token):
         """Get the context of a verb including its objects and modifiers."""
