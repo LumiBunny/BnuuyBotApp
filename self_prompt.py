@@ -7,10 +7,10 @@ class ConversationPrompter:
         self.bunny = bunny_completions
         self.min_seconds = min_seconds
         self.max_seconds = max_seconds
-        self.is_running = False
+        self.is_running = False  # Start with timer inactive
         self.timer_thread = None
         self.last_interaction_time = time.time()
-        self.timer_active = True
+        self.timer_active = False  # Start with timer inactive
         self.tts_engine = tts_engine
         
     def on_empty_transcription(self):
@@ -25,12 +25,17 @@ class ConversationPrompter:
         print("Timer stopped - valid transcription received")
     
     def on_tts_finished(self):
+        if not self.is_running:
+            return  # Don't start any timers if the timer is not running
+            
         self.timer_active = True
         self.last_interaction_time = time.time()
         next_prompt_time = random.uniform(self.min_seconds, self.max_seconds)
         self.next_prompt_time = next_prompt_time  # Store for reference
+        
+        # Don't create a new timer, just update the existing one's timing
         print(f"\n⏱️ New timer started - TTS playback complete. Next prompt in {next_prompt_time:.2f}s")
-
+          
     def on_valid_transcription(self):
         self.timer_active = False
         print("\n⏸️ Timer STOPPED - Valid transcription received")
@@ -40,15 +45,24 @@ class ConversationPrompter:
             print("Prompter already running")
             return
         
+        # Check if TTS is playing
+        if self.tts_engine and hasattr(self.tts_engine, 'is_playing') and self.tts_engine.is_playing:
+            print("Cannot start timer while TTS is playing")
+            return
+        
         self.is_running = True
         self.timer_active = True
         self.last_interaction_time = time.time()
         self.next_prompt_time = random.uniform(self.min_seconds, self.max_seconds)
         print(f"Conversation prompter started. First prompt in {self.next_prompt_time:.2f}s if no interaction")
         
-        self.timer_thread = threading.Thread(target=self._prompt_loop)
-        self.timer_thread.daemon = True
-        self.timer_thread.start()
+        # Only start a new thread if no thread exists or the existing one isn't alive
+        if not self.timer_thread or not self.timer_thread.is_alive():
+            self.timer_thread = threading.Thread(target=self._prompt_loop)
+            self.timer_thread.daemon = True
+            self.timer_thread.start()
+        else:
+            print("Timer thread already running, not starting a new one")
     
     def stop(self):
         if not self.is_running:
