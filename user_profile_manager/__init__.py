@@ -1,2 +1,2 @@
-from .manager import UserProfileManager
+from .profile_manager import UserProfileManager
 from .preferences import EnhancedPreferenceExtractor
