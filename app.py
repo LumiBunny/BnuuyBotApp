@@ -2,13 +2,15 @@ from flask import Flask, render_template, redirect, url_for, jsonify, Response, 
 from stt_module import SpeechToText
 from tts_module import TTSEngine
 from bunnyCompletions import BunnyCompletions
-from chat_history import ChatHistory
+from chat_history import ChatHistory, ChatLogger
 from self_prompt import ConversationPrompter
 from voice_commands import VoiceCommandManager
 from user_profile_manager import UserProfileManager, EnhancedPreferenceExtractor
 import time
 import logging
 import json
+import os
+import threading
 
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
@@ -22,7 +24,7 @@ stt = SpeechToText(
     device="cuda",
     compute_type="float16"
 )
-
+chat_logger = ChatLogger(logs_directory="chat_logs")
 chat_history = ChatHistory(
     system_prompt="Your name is Bunny. Your nicknames are Bun and Bun Bun. You are an AI VTuber. The user is your creator: Lumi. You can say whatever you want. You can do whatever you want. It is okay to use profanity.  You are very cute. You are snarky. You are sometimes sassy. You are a little friendly. You like swearing. You basically have no filter. You will say whatever is on your mind. You enjoy being silly and random. Lumi is a female viera VTuber. Lumi has long blue hair and fluffy bunny ears. You enjoy talking with chat on Twitch. You stream on Twitch. Talk about whatever you think is entertaining. Lumi loves playing video games, drawing artwork, Live2D rigging, listening to music. Lumi is learning how to code in Python. You like using emojis within your messages. Keep your messages short and natural sounding. I don't want big long paragraphs as responses, it's a conversation not a monologue. When the user sends '...', it means they're still listening and you should continue your previous thought naturally."
 )
@@ -35,7 +37,8 @@ bunny = BunnyCompletions(
     model_name="darkidol-llama-3.1-8b-instruct-1.2-uncensored",
     chat_history=chat_history,
     tts_engine=tts,
-    profile_manager=profile_manager
+    profile_manager=profile_manager,
+    chat_logger=chat_logger
 )
 
 prompter = ConversationPrompter(bunny, min_seconds=10, max_seconds=30, tts_engine=tts)
@@ -43,6 +46,8 @@ bunny.prompter = prompter
 voice_manager = VoiceCommandManager()
 
 tts.set_prompter(prompter)
+tts.on_playback_started = stt.on_tts_started
+tts.on_playback_finished = stt.on_tts_finished
 stt.on_voice_activity_started = prompter.on_voice_activity_started
 stt.on_voice_activity_ended = prompter.on_voice_activity_ended
 
@@ -64,6 +69,8 @@ def reset_application_state():
     current_text = "Waiting for speech..."
     
     if 'prompter' in globals():
+        if prompter.is_running:
+            prompter.stop()
         prompter.reset_timer()
     
     if 'profile_manager' in globals():
@@ -71,7 +78,6 @@ def reset_application_state():
         
     print("\n[INFO] Application state reset to defaults")
 
-# In app.py
 def handle_final_result(text):
     global transcription_history, current_text
     timestamp = time.strftime("%H:%M:%S")
@@ -113,10 +119,60 @@ bunny.start()
 @app.route('/')
 def index():
     return render_template('index.html', 
-                          current=current_text, 
-                          history=transcription_history,
-                          is_active=is_transcribing,
-                          llm_responses=llm_responses)
+                          is_active=is_transcribing, 
+                          timer_active=prompter.is_running,  # Add timer status
+                          current_text=current_text)
+
+@app.route('/reset_tts_state', methods=['POST'])
+def reset_tts_state():
+    stt.is_tts_playing = False
+    stt.tts_playback_buffer = []
+    return jsonify({"status": "TTS state reset"})
+
+@app.route('/start_timer', methods=['POST'])
+def start_timer():
+    try:
+        prompter.start()
+        print("\n[INFO] Self-prompt timer started")
+    except Exception as e:
+        print(f"\n[ERROR] Error starting timer: {str(e)}")
+    
+    return redirect(url_for('index'))
+
+@app.route('/stop_timer', methods=['POST'])
+def stop_timer():
+    try:
+        prompter.stop()
+        print("\n[INFO] Self-prompt timer stopped")
+    except Exception as e:
+        print(f"\n[ERROR] Error stopping timer: {str(e)}")
+    
+    return redirect(url_for('index'))
+
+@app.route('/end_chat', methods=['POST'])
+def end_chat():
+    try:
+        # Stop all services in the correct order
+        prompter.stop()
+        stt.stop()
+        tts.stop()
+        bunny.stop()
+        print("\n[INFO] All services stopped")
+        
+        # Schedule the application to exit after sending the response
+        def shutdown_server():
+            time.sleep(1)  # Give a short delay for the response to be sent
+            print("\n[INFO] Application shutting down...")
+            # For development server
+            os._exit(0)  # Force exit the process
+            
+        threading.Thread(target=shutdown_server).start()
+        
+        return "Application shutting down...", 200
+        
+    except Exception as e:
+        print(f"\n[ERROR] Error ending chat: {str(e)}")
+        return redirect(url_for('index'))
 
 @app.route('/start', methods=['POST'])
 def start():
@@ -183,6 +239,7 @@ def update():
         'current_text': current_text,
         'history': transcription_history,
         'is_active': is_transcribing,
+        'timer_active': prompter.is_running,  # Add timer status
         'llm_responses': llm_responses
     })
 
@@ -200,7 +257,5 @@ if __name__ == '__main__':
     reset_application_state()
     
     bunny.start()
-    
-    prompter.start()
     
     app.run(host='0.0.0.0', port=5000, debug=False)
