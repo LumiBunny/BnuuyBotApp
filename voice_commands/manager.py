@@ -7,12 +7,6 @@ class VoiceCommandManager:
         self.command_processor = CommandProcessor()
     
     def process_input(self, text):
-        """
-        Process input text through the voice command pipeline
-        Returns:
-            - processed_text: Text with attention markers or command results
-            - is_command: Boolean indicating if a command was executed
-        """
         if not text or not text.strip():
             return None, False
        

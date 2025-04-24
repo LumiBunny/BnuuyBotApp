@@ -49,7 +49,6 @@ is_transcribing = False
 current_stream = {"text": "", "complete": False}
 
 def reset_application_state():
-    """Reset application state to defaults"""
     global is_transcribing, current_text
     
     try:

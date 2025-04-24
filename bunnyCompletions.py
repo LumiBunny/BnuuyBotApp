@@ -14,7 +14,7 @@ class BunnyCompletions:
 
         self.is_processing = False
         self.processing_lock = threading.Lock()
-        self.pending_text = None  # Store the pending text here
+        self.pending_text = None
         self._initialize_client()
         
         if chat_history:
@@ -32,7 +32,6 @@ class BunnyCompletions:
         self.on_stream_fragment = None
     
     def _initialize_client(self):
-        """Initialize the LM Studio client and model"""
         try:
             lms.get_default_client(self.server_api_host)
             self.model = lms.llm(self.model_name)
@@ -41,7 +40,6 @@ class BunnyCompletions:
             print(f"\n[BUNNY ERROR] Failed to initialize client: {str(e)}")
     
     def start(self):
-        """Start the completion processing thread"""
         if self.is_running:
             print("\n[BUNNY] Already running")
             return
@@ -53,7 +51,6 @@ class BunnyCompletions:
         print("\n[BUNNY] Service started")
     
     def stop(self):
-        """Stop the completion processing thread"""
         if not self.is_running:
             print("\n[BUNNY] Not running")
             return

@@ -10,23 +10,21 @@ class CommandProcessor:
         }
     
     def process_command(self, text):
-        """Check if text contains any registered commands and execute them"""
         text_lower = text.lower()
         
         for command, handler in self.commands.items():
             if command in text_lower:
                 return handler()
         
-        # No command found
         return None
     
+    # Voice command functions and ideas to develop later
+
     def clear_history(self):
-        """Clear the conversation history"""
-        # Implementation would connect to your chat history module
+        # Implementation would connect to your chat history module, to develop
         return "COMMAND:CLEAR_HISTORY"
     
     def stop_listening(self):
-        """Stop the STT module from listening"""
         # Implementation would connect to your STT module
         return "COMMAND:STOP_LISTENING"
     
