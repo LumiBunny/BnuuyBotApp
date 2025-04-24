@@ -11,6 +11,7 @@ import threading
 import re
 import queue
 import time
+import random
 
 class TTSEngine:
     def __init__(self, voice="en-US-AnaNeural", speed=1.15, api_url="http://localhost:5050/v1/audio/speech"):
@@ -36,23 +37,42 @@ class TTSEngine:
         self.current_thread = None
 
     def start(self):
-        """Start the audio processing thread"""
+        if self.is_running:
+            print("Prompter already running")
+            return
+        
+        # Check if TTS is playing
+        if self.tts_engine and hasattr(self.tts_engine, 'is_speaking') and self.tts_engine.is_speaking:
+            print("Cannot start timer while TTS is playing")
+            return
+        
         self.is_running = True
-        self.thread = threading.Thread(target=self.process_audio_queue)
-        self.thread.daemon = True
-        self.thread.start()
+        self.timer_active = True
+        self.last_interaction_time = time.time()
+        self.next_prompt_time = random.uniform(self.min_seconds, self.max_seconds)
+        print(f"Conversation prompter started. First prompt in {self.next_prompt_time:.2f}s if no interaction")
+        
+        # Only start a new thread if no thread exists or the existing one isn't alive
+        if not self.timer_thread or not self.timer_thread.is_alive():
+            self.timer_thread = threading.Thread(target=self._prompt_loop)
+            self.timer_thread.daemon = True
+            self.timer_thread.start()
+        else:
+            print("Timer thread already running, not starting a new one")
 
     def set_prompter(self, prompter):
         self.prompter = prompter
 
     def speak_with_callback(self, text, callback=None):
-        """Speak text and call the callback after the specified duration"""
         if not text:
             return
             
         cleaned_text = self.clean_text_for_speech(text)
         if not cleaned_text:
             return
+        
+        if hasattr(self, 'on_playback_started') and callable(self.on_playback_started):
+            self.on_playback_started()
             
         data = {
             "input": cleaned_text,
@@ -87,29 +107,33 @@ class TTSEngine:
                         self._current_timer = None
                 
                 if callback:
-                    timer_thread = threading.Timer(duration + 0.5, callback)
+                    # Modified callback wrapper to ensure on_playback_finished is called
+                    def wrapped_callback():
+                        if hasattr(self, 'on_playback_finished') and callable(self.on_playback_finished):
+                            self.on_playback_finished()
+                        callback()
+                    
+                    timer_thread = threading.Timer(duration + 0.5, wrapped_callback)
                     timer_thread.daemon = True
                     timer_thread.start()
                     self._current_timer = timer_thread
                     print(f"Timer will trigger callback at {time.strftime('%H:%M:%S', time.localtime(time.time() + duration + 0.5))}")
                 elif hasattr(self, 'prompter') and self.prompter and not timer_already_running:
-                    timer_thread = threading.Timer(duration + 0.5, self.prompter.on_tts_finished)  # Add a small buffer
+                    # Modified prompter callback to ensure on_playback_finished is called
+                    def wrapped_prompter_callback():
+                        if hasattr(self, 'on_playback_finished') and callable(self.on_playback_finished):
+                            self.on_playback_finished()
+                        self.prompter.on_tts_finished()
+                    
+                    timer_thread = threading.Timer(duration + 0.5, wrapped_prompter_callback)
                     timer_thread.daemon = True
                     timer_thread.start()
                     self._current_timer = timer_thread
                     print(f"Timer will trigger prompter callback at {time.strftime('%H:%M:%S', time.localtime(time.time() + duration + 0.5))}")
-                elif hasattr(self, 'prompter') and self.prompter and timer_already_running:
-                    print(f"⏱️ Timer already running - not starting a new one")
-                    
-                return True
             else:
-                print(f"TTS Error: {response.status_code}")
-                print(response.text)
-                return False
-                
+                print(f"Error: {response.status_code} - {response.text}")
         except Exception as e:
-            print(f"TTS Error: {str(e)}")
-            return False
+            print(f"Error in TTS: {str(e)}")
 
     def process_audio_queue(self):
         while self.is_running:
@@ -126,9 +150,16 @@ class TTSEngine:
             except Exception as e:
                 print(f"Error in audio processing: {str(e)}")
 
+    # In tts_module.py
     def audio_finished_callback(self):
         self.is_speaking = False
         print("Audio playback finished")
+        
+        if hasattr(self, 'on_playback_finished') and callable(self.on_playback_finished):
+            print("DEBUG: Calling on_playback_finished callback")
+            self.on_playback_finished()
+        else:
+            print("DEBUG: No on_playback_finished callback available")
 
     def _monitor_playback_end(self):
         while self.is_running:
