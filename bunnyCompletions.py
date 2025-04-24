@@ -5,12 +5,14 @@ import lmstudio as lms
 from chat_history import ChatHistory
 
 class BunnyCompletions:
-    def __init__(self, server_api_host, model_name, chat_history=None, tts_engine=None):
+    def __init__(self, server_api_host, model_name, chat_history=None, tts_engine=None, profile_manager=None, chat_logger=None):
         self.tts = tts_engine
         self.server_api_host = server_api_host
         self.model_name = model_name
         self.client = None
         self.model = None
+        self.profile_manager = profile_manager
+        self.chat_logger = chat_logger
 
         self.is_processing = False
         self.processing_lock = threading.Lock()
@@ -70,6 +72,10 @@ class BunnyCompletions:
                 print("AI is busy, appending to pending text")
                 return False
             else:
+                # Log all user messages including continuation markers
+                if self.chat_logger:
+                    self.chat_logger.append_to_log("user", text)
+                    
                 continuation_markers = ["[continue]", "[thinking]", "[AI continues]", "[self-talk]"]
                 if text in continuation_markers:
                     self.work_queue.put(("CONTINUE", text))
@@ -91,6 +97,7 @@ class BunnyCompletions:
                         # Regular user message
                         self._get_streaming_completion(text)
                         
+
             except Exception as e:
                 print(f"[BUNNY ERROR] Error processing queue: {str(e)}")
                 
@@ -112,6 +119,10 @@ class BunnyCompletions:
                     self.on_stream_fragment(fragment.content)
             
             self.chat_history.add_assistant_message(full_response)
+            
+            # Log the assistant's response after it's complete
+            if self.chat_logger and full_response:
+                self.chat_logger.append_to_log("assistant", full_response)
             
             if self.on_completion and full_response:
                 self.on_completion(full_response)
