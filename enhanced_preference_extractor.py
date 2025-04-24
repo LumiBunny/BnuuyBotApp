@@ -1,4 +1,5 @@
 import spacy
+import re
 from spacy.matcher import Matcher
 
 GAME_TITLES = ["final fantasy", "zelda", "mario", "minecraft"]
@@ -692,7 +693,155 @@ class EnhancedPreferenceExtractor:
                         })
                         added_verbs.add(verb)
         
-        # Replace the original results with the filtered ones
+        # Special case for RPG games and implied preferences
+        text_lower = text.lower()
+        if "rpg games" in text_lower or "rpg game" in text_lower:
+            # First, handle the rpg/rpg games conversion
+            has_rpg = any(result["preference_value"] == "rpg" for result in filtered_results)
+            has_rpg_games = any(result["preference_value"] == "rpg games" for result in filtered_results)
+            
+            if has_rpg and has_rpg_games:
+                # If both exist, remove the "rpg" entries
+                filtered_results = [result for result in filtered_results if result["preference_value"] != "rpg"]
+            elif has_rpg:
+                # If only "rpg" exists, convert it to "rpg games"
+                for result in filtered_results:
+                    if result["preference_value"] == "rpg":
+                        result["preference_value"] = "rpg games"
+                        result["notes"] = re.sub(r'\brpg\b', "rpg games", result["notes"], flags=re.IGNORECASE)
+                        if "context" in result:
+                            result["context"] = re.sub(r'\brpg\b', "rpg games", result["context"], flags=re.IGNORECASE)
+            
+            # Now add implied preferences if they don't already exist
+            
+            # Check for "games" preference
+            has_games = any(result["preference_value"] == "games" for result in filtered_results)
+            if not has_games:
+                # Add implied "games" preference
+                games_pref = {
+                    "preference_type": "likes",
+                    "preference_value": "games",
+                    "notes": "User expressed likes towards games (implied by rpg games)",
+                    "context": "likes games (implied by likes rpg games)"
+                }
+                filtered_results.append(games_pref)
+            
+            # Check for "playing games" if "playing rpg games" exists
+            has_playing_rpg_games = any(result["preference_value"] == "playing rpg games" for result in filtered_results)
+            has_playing_games = any(result["preference_value"] == "playing games" for result in filtered_results)
+            
+            if has_playing_rpg_games and not has_playing_games:
+                # Add implied "playing games" preference
+                playing_games_pref = {
+                    "preference_type": "likes",
+                    "preference_value": "playing games",
+                    "notes": "User expressed likes towards playing games (implied by playing rpg games)",
+                    "context": "likes playing games (implied by likes playing rpg games)"
+                }
+                filtered_results.append(playing_games_pref)
+            
+            # Check for "gaming" preference
+            has_gaming = any(result["preference_value"] == "gaming" for result in filtered_results)
+            if not has_gaming and has_playing_rpg_games:
+                # Add implied "gaming" preference
+                gaming_pref = {
+                    "preference_type": "likes",
+                    "preference_value": "gaming",
+                    "notes": "User expressed likes towards gaming (implied by playing rpg games)",
+                    "context": "likes gaming (implied by likes playing rpg games)"
+                }
+                filtered_results.append(gaming_pref)
+        
+        # Handle "with" phrases to maintain precision
+        for i, result in enumerate(filtered_results):
+            pref_value = result["preference_value"]
+            
+            # Check if this preference has a "with" phrase in the original text
+            if " with " in text_lower:
+                # Look for patterns like "[pref_value] with [something]"
+                with_pattern = rf"\b{re.escape(pref_value)}\s+with\s+([a-z\s]+)"
+                match = re.search(with_pattern, text_lower)
+                
+                if match:
+                    # Found a "with" phrase that includes this preference
+                    with_object = match.group(1).strip()
+                    new_value = f"{pref_value} with {with_object}"
+                    
+                    # Update the preference value to include the "with" phrase
+                    filtered_results[i]["preference_value"] = new_value
+                    
+                    # Update notes and context
+                    if "notes" in filtered_results[i]:
+                        filtered_results[i]["notes"] = filtered_results[i]["notes"].replace(
+                            pref_value, new_value)
+                    
+                    if "context" in filtered_results[i]:
+                        filtered_results[i]["context"] = filtered_results[i]["context"].replace(
+                            pref_value, new_value)
+            
+            # Also check for verb+object with something patterns
+            if " with " in text_lower and " " in pref_value:  # Only for multi-word preferences
+                verb_obj_pattern = rf"\b{re.escape(pref_value)}\s+with\s+([a-z\s]+)"
+                match = re.search(verb_obj_pattern, text_lower)
+                
+                if match:
+                    with_object = match.group(1).strip()
+                    new_value = f"{pref_value} with {with_object}"
+                    
+                    # Update the preference
+                    filtered_results[i]["preference_value"] = new_value
+                    
+                    if "notes" in filtered_results[i]:
+                        filtered_results[i]["notes"] = filtered_results[i]["notes"].replace(
+                            pref_value, new_value)
+                    
+                    if "context" in filtered_results[i]:
+                        filtered_results[i]["context"] = filtered_results[i]["context"].replace(
+                            pref_value, new_value)
+        
+        # Handle "listening to X music" patterns
+        for i, result in enumerate(filtered_results):
+            pref_value = result["preference_value"]
+            
+            # Check for "listening to X music" pattern
+            if pref_value.startswith("listening to ") and pref_value.endswith(" music"):
+                # Extract the music genre
+                genre = pref_value.replace("listening to ", "").replace(" music", "")
+                
+                # Add the music genre as a separate preference
+                music_pref = {
+                    "preference_type": "likes",
+                    "preference_value": genre,
+                    "notes": f"User expressed likes towards {genre} music",
+                    "context": result.get("context", f"likes {genre}")
+                }
+                
+                # Only add if it doesn't already exist
+                if not any(r["preference_value"] == genre for r in filtered_results):
+                    filtered_results.append(music_pref)
+
+        # Fix incomplete activities
+        for i, result in enumerate(filtered_results):
+            if result["preference_value"] == "listening":
+                # Look for a more complete "listening to X" preference
+                complete_listening = next(
+                    (r for r in filtered_results if r["preference_value"].startswith("listening to ")), 
+                    None
+                )
+                
+                if complete_listening:
+                    # Replace the incomplete "listening" with the complete version
+                    filtered_results[i]["preference_value"] = complete_listening["preference_value"]
+                    if "notes" in filtered_results[i]:
+                        filtered_results[i]["notes"] = filtered_results[i]["notes"].replace(
+                            "listening", complete_listening["preference_value"])
+                    if "context" in filtered_results[i]:
+                        filtered_results[i]["context"] = complete_listening.get("context", 
+                            filtered_results[i]["context"].replace("listening", complete_listening["preference_value"]))
+        
+        # Debug print after all processing
+        print("DEBUG: Final results:", [(r["preference_value"], r.get("context", "")) for r in filtered_results])
+        
         return filtered_results
     
     def categorize_object(self, object_phrase):
@@ -729,12 +878,22 @@ class EnhancedPreferenceExtractor:
         
     def _get_verb_context(self, verb_token):
         """Get the context of a verb including its objects and modifiers."""
+        print(f"\nDEBUG: Processing verb: {verb_token.text}")
+        
         # Start with the verb itself
         context_parts = [verb_token.text]
-    
+
+        # Print the entire sentence for context
+        print(f"DEBUG: Full sentence: {verb_token.sent.text}")
+        
+        # Print all children of the verb
+        print(f"DEBUG: Verb children: {[f'{c.text}({c.dep_})' for c in verb_token.children]}")
+        
         # Check for specific game titles in the sentence
         sent_text = " ".join([token.text for token in verb_token.sent]).lower()
-        
+        if "rpg games" in sent_text and verb_token.lemma_ == "play":
+            return f"{verb_token.text} rpg games"
+
         # If playing/play is mentioned with a game title, handle specially
         if verb_token.lemma_.lower() in ["play"] and any(title in sent_text for title in self.game_titles):
             # Find which game title is mentioned
@@ -772,13 +931,17 @@ class EnhancedPreferenceExtractor:
                 else:
                     # For direct objects, get the full noun phrase
                     if child.pos_ in ["NOUN", "PROPN"]:
-                        compounds = []
-                        for gc_child in child.subtree:
-                            if gc_child.dep_ in ["compound", "amod", "det"] or gc_child == child:
-                                compounds.append((gc_child.i, gc_child.text))
+                        # Debug print to see what's happening
+                        print(f"DEBUG: Processing noun: {child.text}")
                         
-                        compounds.sort()
-                        context_parts.extend([c[1] for c in compounds])
+                        # Get the entire subtree as one phrase
+                        subtree_text = " ".join([token.text for token in child.subtree])
+                        
+                        # Special case for "RPG games"
+                        if "rpg" in subtree_text.lower() and "game" in subtree_text.lower():
+                            context_parts.append("rpg games")
+                        else:
+                            context_parts.append(subtree_text)
                     else:
                         context_parts.append(child.text)
         
@@ -800,5 +963,7 @@ class EnhancedPreferenceExtractor:
             context_str = context_str.replace("rpg games final", "rpg games")
             return context_str
         
-        # Return the complete verb context
-        return " ".join(context_parts)
+        # At the end, print what's being returned
+        result = " ".join(context_parts)
+        print(f"DEBUG: Final verb context: {result}")
+        return result
