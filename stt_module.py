@@ -46,6 +46,9 @@ class SpeechToText:
         self.silence_threshold = silence_threshold
         self.frame_duration_ms = frame_duration_ms
         self.padding_duration_ms = padding_duration_ms
+
+        self.tts_playback_buffer = []
+        self.is_tts_playing = False
         
         self.is_running = False
         self.processing_thread = None
@@ -53,6 +56,27 @@ class SpeechToText:
         
         self.on_interim_result = None
         self.on_final_result = None
+
+    # In stt_module.py
+    def on_tts_started(self):
+        self.is_tts_playing = True
+        self.tts_playback_buffer = []  # Clear buffer when TTS starts
+        print("DEBUG: TTS playback started, buffering enabled")
+        
+    def on_tts_finished(self):
+        self.is_tts_playing = False
+        print("DEBUG: TTS playback finished, processing buffer with", len(self.tts_playback_buffer), "items")
+        
+        # Process any buffered transcriptions
+        if self.tts_playback_buffer:
+            combined_text = " ".join(self.tts_playback_buffer)
+            print(f"Processing combined transcription: {combined_text}")
+            
+            # Send to your processing pipeline
+            if self.on_final_result:
+                self.on_final_result(combined_text)
+                
+            self.tts_playback_buffer = []  # Clear buffer after processing
 
     def is_speech(self, frame):
         amplitude = np.max(np.abs(frame))
@@ -178,10 +202,16 @@ class SpeechToText:
                                     
                                     # Fixed condition: Check if text is valid
                                     if final_text and "ლლლ" not in final_text:
-                                        if self.on_final_result:
-                                            self.on_final_result(final_text)
+                                        # NEW CODE: Buffer transcription if TTS is playing
+                                        if hasattr(self, 'is_tts_playing') and self.is_tts_playing:
+                                            print(f"TTS is playing, buffering transcription: {final_text}")
+                                            self.tts_playback_buffer.append(final_text)
                                         else:
-                                            self.default_display(final_text, is_final=True)
+                                            # Process normally if TTS is not playing
+                                            if self.on_final_result:
+                                                self.on_final_result(final_text)
+                                            else:
+                                                self.default_display(final_text, is_final=True)
                                 
                                 self.speech_buffer = []
                                 
@@ -192,9 +222,11 @@ class SpeechToText:
                 
         except Exception as e:
             print(f"Error in audio processing: {str(e)}")
+            # Reset the TTS state when there's an error
+            self.is_tts_playing = False
+            self.tts_playback_buffer = []
 
     def audio_callback(self, indata, frames, time, status):
-        """Callback for audio stream"""
         if status:
             print(f"Status: {status}")
         
@@ -222,6 +254,10 @@ class SpeechToText:
         print("Transcription started")
 
     def stop(self):
+        self.is_running = False
+        self.is_tts_playing = False  # Reset TTS state
+        self.tts_playback_buffer = []  # Clear buffer
+        
         if not self.is_running:
             print("Not running")
             return
