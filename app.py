@@ -5,6 +5,7 @@ from bunnyCompletions import BunnyCompletions
 from chat_history import ChatHistory
 from self_prompt import ConversationPrompter
 from voice_commands import VoiceCommandManager
+from user_profile_manager import UserProfileManager, EnhancedPreferenceExtractor
 import time
 import logging
 import json
@@ -13,6 +14,8 @@ logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
 app = Flask(__name__)
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Disable caching
+
+profile_manager = UserProfileManager(storage_path="user_profiles")
 
 stt = SpeechToText(
     model_size="small",
@@ -31,7 +34,8 @@ bunny = BunnyCompletions(
     server_api_host="192.168.2.47:1234", 
     model_name="darkidol-llama-3.1-8b-instruct-1.2-uncensored",
     chat_history=chat_history,
-    tts_engine=tts
+    tts_engine=tts,
+    profile_manager=profile_manager
 )
 
 prompter = ConversationPrompter(bunny, min_seconds=10, max_seconds=30, tts_engine=tts)
@@ -61,6 +65,9 @@ def reset_application_state():
     
     if 'prompter' in globals():
         prompter.reset_timer()
+    
+    if 'profile_manager' in globals():
+        profile_manager.clear_cache()
         
     print("\n[INFO] Application state reset to defaults")
 
