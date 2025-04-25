@@ -38,27 +38,17 @@ class TTSEngine:
 
     def start(self):
         if self.is_running:
-            print("Prompter already running")
-            return
-        
-        # Check if TTS is playing
-        if self.tts_engine and hasattr(self.tts_engine, 'is_speaking') and self.tts_engine.is_speaking:
-            print("Cannot start timer while TTS is playing")
+            print("TTS Engine already running")
             return
         
         self.is_running = True
-        self.timer_active = True
-        self.last_interaction_time = time.time()
-        self.next_prompt_time = random.uniform(self.min_seconds, self.max_seconds)
-        print(f"Conversation prompter started. First prompt in {self.next_prompt_time:.2f}s if no interaction")
+        print("TTS Engine started")
         
-        # Only start a new thread if no thread exists or the existing one isn't alive
-        if not self.timer_thread or not self.timer_thread.is_alive():
-            self.timer_thread = threading.Thread(target=self._prompt_loop)
-            self.timer_thread.daemon = True
-            self.timer_thread.start()
-        else:
-            print("Timer thread already running, not starting a new one")
+        # Start the thread that processes the audio queue
+        if not hasattr(self, 'queue_thread') or not self.queue_thread.is_alive():
+            self.queue_thread = threading.Thread(target=self.process_audio_queue)
+            self.queue_thread.daemon = True
+            self.queue_thread.start()
 
     def set_prompter(self, prompter):
         self.prompter = prompter

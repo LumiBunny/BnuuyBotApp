@@ -6,27 +6,36 @@ from chat_history import ChatHistory, ChatLogger
 from self_prompt import ConversationPrompter
 from voice_commands import VoiceCommandManager
 from user_profile_manager import UserProfileManager, EnhancedPreferenceExtractor
+from memory import MemoryManager
 import time
 import logging
 import json
-import os
-import threading
+import datetime
+import timer
 
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
 app = Flask(__name__)
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Disable caching
 
-profile_manager = UserProfileManager(storage_path="user_profiles")
+chat_logger = ChatLogger(logs_directory="chat_logs")
+chat_history = ChatHistory(
+    system_prompt="Your name is Bunny. Your nicknames are Bun and Bun Bun. You are an AI VTuber. The user is your creator: Lumi. You can say whatever you want. You can do whatever you want. It is okay to use profanity.  You are very cute. You are snarky. You are sometimes sassy. You are a little friendly. You like swearing. You basically have no filter. You will say whatever is on your mind. You enjoy being silly and random. Lumi is a female viera VTuber. Lumi has long blue hair and fluffy bunny ears. You enjoy talking with chat on Twitch. You stream on Twitch. Talk about whatever you think is entertaining. Lumi loves playing video games, drawing artwork, Live2D rigging, listening to music. Lumi is learning how to code in Python. You like using emojis within your messages. Keep your messages short and natural sounding. I don't want big long paragraphs as responses, it's a conversation not a monologue. When the user sends '...', it means they're still listening and you should continue your previous thought naturally."
+)
+
+preference_extractor = EnhancedPreferenceExtractor()
+profile_manager = UserProfileManager(
+    storage_path="user_profiles", 
+    preference_extractor=preference_extractor,
+    chat_logger=chat_logger
+)
+memory_manager = MemoryManager(profile_manager=profile_manager)
+memory_manager.start()
 
 stt = SpeechToText(
     model_size="small",
     device="cuda",
     compute_type="float16"
-)
-chat_logger = ChatLogger(logs_directory="chat_logs")
-chat_history = ChatHistory(
-    system_prompt="Your name is Bunny. Your nicknames are Bun and Bun Bun. You are an AI VTuber. The user is your creator: Lumi. You can say whatever you want. You can do whatever you want. It is okay to use profanity.  You are very cute. You are snarky. You are sometimes sassy. You are a little friendly. You like swearing. You basically have no filter. You will say whatever is on your mind. You enjoy being silly and random. Lumi is a female viera VTuber. Lumi has long blue hair and fluffy bunny ears. You enjoy talking with chat on Twitch. You stream on Twitch. Talk about whatever you think is entertaining. Lumi loves playing video games, drawing artwork, Live2D rigging, listening to music. Lumi is learning how to code in Python. You like using emojis within your messages. Keep your messages short and natural sounding. I don't want big long paragraphs as responses, it's a conversation not a monologue. When the user sends '...', it means they're still listening and you should continue your previous thought naturally."
 )
 
 tts = TTSEngine(voice="en-US-AnaNeural", speed=1.15)
@@ -38,7 +47,9 @@ bunny = BunnyCompletions(
     chat_history=chat_history,
     tts_engine=tts,
     profile_manager=profile_manager,
-    chat_logger=chat_logger
+    chat_logger=chat_logger,
+    memory_manager=memory_manager,
+    default_user_id="lumi"
 )
 
 prompter = ConversationPrompter(bunny, min_seconds=10, max_seconds=30, tts_engine=tts)
@@ -121,7 +132,8 @@ def index():
     return render_template('index.html', 
                           is_active=is_transcribing, 
                           timer_active=prompter.is_running,  # Add timer status
-                          current_text=current_text)
+                          current_text=current_text,
+                          default_user_id=bunny.default_user_id)
 
 @app.route('/reset_tts_state', methods=['POST'])
 def reset_tts_state():
@@ -159,20 +171,28 @@ def end_chat():
         bunny.stop()
         print("\n[INFO] All services stopped")
         
-        # Schedule the application to exit after sending the response
-        def shutdown_server():
-            time.sleep(1)  # Give a short delay for the response to be sent
-            print("\n[INFO] Application shutting down...")
-            # For development server
-            os._exit(0)  # Force exit the process
-            
-        threading.Thread(target=shutdown_server).start()
+        # Add a system message to the chat history - use a safer approach
+        try:
+            if hasattr(chat_logger, 'add_system_message'):
+                chat_logger.add_system_message("Chat session ended. All services have been stopped.")
+            # If the above doesn't work, you might need to implement a different approach
+            # based on how your chat_logger is implemented
+        except Exception as e:
+            print(f"\n[WARNING] Could not add system message: {str(e)}")
+            # This will prevent the error from stopping the entire function
         
-        return "Application shutting down...", 200
+        # Return a success message without redirecting
+        return jsonify({
+            "success": True,
+            "message": "Chat session ended successfully."
+        })
         
     except Exception as e:
         print(f"\n[ERROR] Error ending chat: {str(e)}")
-        return redirect(url_for('index'))
+        return jsonify({
+            "success": False,
+            "message": f"Error ending chat: {str(e)}"
+        })
 
 @app.route('/start', methods=['POST'])
 def start():
@@ -233,14 +253,45 @@ def clear():
     print("\n[INFO] Visual history cleared, but AI chat context remains")
     return redirect(url_for('index'))
 
+@app.route('/set_user_id', methods=['POST'])
+def set_user_id():
+    from flask import request
+    user_id = request.form.get('user_id', '').strip()
+    
+    if user_id:
+        success = bunny.set_user_id(user_id)
+        if success:
+            return redirect(url_for('index'))
+    
+    # If we get here, something went wrong
+    return jsonify({"error": "Invalid user ID"}), 400
+
 @app.route('/update', methods=['GET'])
 def update():
+    # Get system messages
+    system_messages = []
+    
+    # Try different ways to access system messages based on your implementation
+    if hasattr(chat_logger, 'get_system_messages'):
+        system_messages = chat_logger.get_system_messages()
+    elif hasattr(chat_logger, 'system_messages'):
+        system_messages = chat_logger.system_messages
+    
+    # Format system messages for the response
+    formatted_system_messages = []
+    for message in system_messages:
+        formatted_system_messages.append({
+            "text": message.get("content", ""),
+            "time": message.get("time", datetime.datetime.now().strftime("%H:%M:%S"))
+        })
+    
     return jsonify({
         'current_text': current_text,
         'history': transcription_history,
         'is_active': is_transcribing,
-        'timer_active': prompter.is_running,  # Add timer status
-        'llm_responses': llm_responses
+        'timer_active': prompter.is_running,
+        'llm_responses': llm_responses,
+        'system_messages': formatted_system_messages
     })
 
 if __name__ == '__main__':

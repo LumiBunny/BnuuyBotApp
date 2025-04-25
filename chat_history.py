@@ -16,6 +16,16 @@ class ChatLogger:
         # Initialize with empty conversations array
         with open(self.current_log_file, 'w') as f:
             json.dump({"conversations": []}, f, indent=2)
+
+    def add_system_message(self, content):
+        # Check if the last message was also a system message
+        if self.messages and self.messages[-1]["role"] == "system":
+            # Append to the existing system message instead of adding a new one
+            self.messages[-1]["content"] += "\n\n" + content
+        else:
+            # Add as a new system message
+            self.messages.append({"role": "system", "content": content})
+        return self
     
     def append_to_log(self, from_role, message_value):
         if not self.current_log_file:

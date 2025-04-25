@@ -1,0 +1,238 @@
+body {
+    font-family: Arial, sans-serif;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #f8f9fa;
+}
+
+h1 {
+    text-align: center;
+    color: #343a40;
+    margin-bottom: 20px;
+}
+
+/* Container for sidebar and main content */
+.container {
+    display: flex;
+    gap: 20px;
+    min-height: 70vh;
+    max-height: 80vh;
+}
+
+/* Sidebar styling */
+.sidebar {
+    width: 30%;
+    background-color: #f0f0f0;
+    border-radius: 5px;
+    padding: 15px;
+    max-height: 70vh;
+    overflow-y: auto; 
+}
+
+.sidebar-section {
+    margin-bottom: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.sidebar-section form {
+    width: calc(50% - 4px);
+    margin-bottom: 0;
+}
+
+.sidebar-section button {
+    width: 100%;
+    margin-bottom: 0;
+}
+
+/* Main content area */
+.main-content {
+    width: 70%;
+}
+
+#conversation {
+    height: 70vh; 
+    max-height: 600px; 
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    overflow-y: auto;
+    padding: 15px;
+    background-color: white;
+}
+
+/* Button styling */
+button {
+    padding: 10px;
+    font-size: 14px;
+    cursor: pointer;
+    border: none;
+    border-radius: 4px;
+    font-weight: bold;
+    width: 100%;
+    margin-bottom: 8px;
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-success {
+    background-color: #28a745;
+    color: white;
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    color: white;
+}
+
+.btn-primary {
+    background-color: #0d6efd;
+    color: white;
+}
+
+.btn-info {
+    background-color: #17a2b8;
+    color: white;
+}
+
+.btn-warning {
+    background-color: #ffc107;
+    color: white;
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+    color: white;
+}
+
+.btn-dark {
+    background-color: #343a40;
+    color: white;
+}
+
+/* Form styling */
+input[type="text"] {
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    width: 100%;
+    margin-bottom: 8px;
+    box-sizing: border-box; 
+}
+
+#user-id-form {
+    width: 100%;
+}
+
+#user-id-form label, 
+#user-id-form input, 
+#user-id-form button {
+    width: 100%;
+    display: block;
+    margin-bottom: 8px;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+}
+
+/* Status indicators */
+#status {
+    font-style: italic;
+    color: #666;
+    margin-bottom: 20px;
+}
+
+.status-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 5px;
+}
+
+.status-active {
+    background-color: #28a745;
+}
+
+.status-inactive {
+    background-color: #dc3545;
+}
+
+/* Message styling */
+.message-name {
+    font-weight: bold;
+    margin-bottom: 5px;
+    font-size: 0.9em;
+}
+
+.transcript-item .message-name {
+    color: #1565c0; 
+}
+
+.bunny-item .message-name {
+    color: #558b2f;
+}
+
+.system-message .message-name {
+    color: #c62828;
+}
+
+.transcript-item {
+    padding: 12px;
+    background-color: #e3f2fd;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    border-left: 4px solid #2196f3;
+}
+
+.bunny-item {
+    padding: 12px;
+    background-color: #f0f4c3;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    border-left: 4px solid #8bc34a;
+}
+
+.system-message {
+    padding: 12px;
+    background-color: #ffe0e0;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    border-left: 4px solid #ff5252;
+    font-style: italic;
+}
+
+.time {
+    font-size: 0.8em;
+    color: #999;
+    text-align: right;
+    margin-top: 5px;
+}
+
+/* Scroll button */
+.scroll-button {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #0d6efd;
+    color: white;
+    font-size: 20px;
+    display: none;
+    z-index: 100;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    border: none;
+}
+
+.scroll-button:hover {
+    background-color: #0a58ca;
+}

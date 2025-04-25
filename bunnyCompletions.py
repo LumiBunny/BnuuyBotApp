@@ -5,7 +5,7 @@ import lmstudio as lms
 from chat_history import ChatHistory
 
 class BunnyCompletions:
-    def __init__(self, server_api_host, model_name, chat_history=None, tts_engine=None, profile_manager=None, chat_logger=None):
+    def __init__(self, server_api_host, model_name, chat_history=None, tts_engine=None, profile_manager=None, chat_logger=None, memory_manager=None, default_user_id="default_user"):
         self.tts = tts_engine
         self.server_api_host = server_api_host
         self.model_name = model_name
@@ -13,6 +13,8 @@ class BunnyCompletions:
         self.model = None
         self.profile_manager = profile_manager
         self.chat_logger = chat_logger
+        self.memory_manager = memory_manager
+        self.default_user_id = default_user_id
 
         self.is_processing = False
         self.processing_lock = threading.Lock()
@@ -61,6 +63,13 @@ class BunnyCompletions:
         if self.processing_thread and self.processing_thread.is_alive():
             self.processing_thread.join(timeout=2)
         print("\n[BUNNY] Service stopped")
+
+    def set_user_id(self, user_id):
+        if user_id and isinstance(user_id, str) and user_id.strip():
+            self.default_user_id = user_id.strip()
+            print(f"\n[BUNNY] User ID set to: {self.default_user_id}")
+            return True
+        return False
     
     def add_to_queue(self, text):
         with self.processing_lock:
@@ -106,19 +115,35 @@ class BunnyCompletions:
     def _get_streaming_completion(self, user_text):
         try:
             self.chat_history.add_user_message(user_text)
+
+            memory_context = None
+            if self.memory_manager:
+                memory_context = self.memory_manager.get_memory_context(
+                    self.default_user_id, user_text)
+            
+            # If we have relevant memories, add them as system message
+            if memory_context:
+                self.chat_history.add_system_message(memory_context)
+            
             self.chat = lms.Chat.from_history(self.chat_history.get_history())
             
+            # Generate the assistant's response
             full_response = ""
-            
             prediction_stream = self.model.respond_stream(self.chat)
             
             for fragment in prediction_stream:
                 full_response += fragment.content
-                
                 if self.on_stream_fragment:
                     self.on_stream_fragment(fragment.content)
             
             self.chat_history.add_assistant_message(full_response)
+
+            # Process the conversation for memory extraction
+            if self.memory_manager and user_text:
+                if self.profile_manager:
+                    user_id = self.default_user_id
+                
+                self.memory_manager.process_conversation(user_id, user_text, full_response)
             
             # Log the assistant's response after it's complete
             if self.chat_logger and full_response:

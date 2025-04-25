@@ -2,10 +2,12 @@ import os
 import json
 
 class UserProfileManager:
-    def __init__(self, storage_path="user_profiles"):
+    def __init__(self, storage_path="user_profiles", preference_extractor=None, chat_logger=None):
         self.storage_path = storage_path
         self.cache = {}  # Profile cache
         self.indexes = {}  # Preference indexes
+        self.preference_extractor = preference_extractor
+        self.chat_logger = chat_logger
         os.makedirs(storage_path, exist_ok=True)
 
     def build_indexes(self, user_id):
@@ -37,6 +39,11 @@ class UserProfileManager:
         # Check if preference exists
         return value.lower() in self.indexes[user_id]["by_value"]
     
+    def extract_preferences(self, text, user_id):
+        if self.preference_extractor:
+            return self.preference_extractor.extract_preferences(text, user_id)
+        return []
+
     def clear_cache(self):
         """Clear the profile cache"""
         self.cache = {}
@@ -289,6 +296,12 @@ class UserProfileManager:
             self._save_profile(user_id, profile)
             # After saving the profile, rebuild the indexes
             self.build_indexes(user_id)
+            
+            # Log the preference to the chat log
+            if self.chat_logger:
+                log_message = f"[PREFERENCE ADDED] {pref_type} {category}: {pref_value}"
+                self.chat_logger.append_to_log("system", log_message)
+                
             return True
         
         return False
