@@ -2,75 +2,72 @@
 <html>
 <head>
     <title>BnuuyBot Chat</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300..700&family=Jua&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 <body>
     <h1>BunnyBot Chat</h1>
-    
     <div class="container">
         <div class="sidebar">
-            <div id="status">
+            <div id="status" style="text-align: center;">
                 <div>
-                    Transcription: 
+                    Listening (mic): 
                     <span class="status-indicator {% if is_active %}status-active{% else %}status-inactive{% endif %}"></span>
                     {% if is_active %}Active{% else %}Inactive{% endif %}
                 </div>
                 <div>
-                    Timer: 
+                    Self-prompting (timer): 
                     <span class="status-indicator {% if timer_active %}status-active{% else %}status-inactive{% endif %}"></span>
                     {% if timer_active %}Active{% else %}Inactive{% endif %}
                 </div>
             </div>
             
             <div class="sidebar-section">
-                <form id="start-form" action="/start" method="post">
-                    <button type="submit" class="btn-success" {% if is_active %}disabled{% endif %}>
-                        Start Listening
+                <!-- Mic button with dynamic title -->
+                <form id="mic-form" action="{% if is_active %}/stop{% else %}/start{% endif %}" method="post">
+                    <button type="submit" 
+                            class="icon-button {% if is_active %}btn-mic-on{% else %}btn-mic-off{% endif %}"
+                            title="{% if is_active %}Stop listening{% else %}Start listening{% endif %}">
+                        <i class="fa-solid {% if is_active %}fa-microphone{% else %}fa-microphone-slash{% endif %}"></i>
                     </button>
                 </form>
                 
-                <form id="stop-form" action="/stop" method="post">
-                    <button type="submit" class="btn-danger" {% if not is_active %}disabled{% endif %}>
-                        Stop Listening
-                    </button>
-                </form>
-            </div>
-            
-            <div class="sidebar-section">
-                <form id="start-timer-form" action="/start_timer" method="post">
-                    <button type="submit" class="btn-info" {% if timer_active %}disabled{% endif %}>
-                        Start Timer
+                <!-- Timer button with dynamic title -->
+                <form id="timer-form" action="{% if timer_active %}/stop_timer{% else %}/start_timer{% endif %}" method="post">
+                    <button type="submit" 
+                            class="icon-button {% if timer_active %}btn-timer-on{% else %}btn-timer-off{% endif %}"
+                            title="{% if timer_active %}Stop self-prompting{% else %}Start self-prompting{% endif %}">
+                        <i class="fa-regular {% if timer_active %}fa-hourglass-half{% else %}fa-hourglass{% endif %}"></i>
                     </button>
                 </form>
                 
-                <form id="stop-timer-form" action="/stop_timer" method="post">
-                    <button type="submit" class="btn-warning" {% if not timer_active %}disabled{% endif %}>
-                        Stop Timer
-                    </button>
-                </form>
-            </div>
-            
-            <div class="sidebar-section">
+                <!-- Clear history button -->
                 <form id="clear-form" action="/clear" method="post">
-                    <button type="submit" class="btn-primary">
-                        Clear History
+                    <button type="submit" class="icon-button btn-clear" title="Clear chat window">
+                        <i class="fa-solid fa-eraser"></i>
                     </button>
                 </form>
                 
+                <!-- End chat button -->
                 <form id="end-chat-form" action="/end_chat" method="post">
-                    <button type="submit" class="btn-secondary">
-                        End Chat
+                    <button type="submit" class="icon-button btn-end" title="End chat session">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
                     </button>
                 </form>
             </div>
             
             <div class="sidebar-section">
                 <form id="user-id-form" action="/set_user_id" method="post">
-                    <label for="user_id">User ID:</label>
-                    <input type="text" id="user_id" name="user_id" value="{{ default_user_id }}">
-                    <button type="submit" class="btn-dark">
-                        Set User
-                    </button>
+                    <div class="input-with-button">
+                        <label for="user_id">User ID:</label>
+                        <input type="text" id="user_id" name="user_id" value="{{ default_user_id }}">
+                        <button type="submit" class="icon-button btn-user-id">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
+                    </div>
                 </form>
             </div>
             <!-- for testing -->
@@ -82,16 +79,27 @@
         </div>
 
         <div class="main-content">
-            <div id="conversation">
-                {% if history or llm_responses %}
-                    <!-- We'll build this dynamically with JavaScript -->
-                {% else %}
-                    <p>No conversation history yet. Start speaking to begin.</p>
-                {% endif %}
+            <div class="conversation-container">
+                <div id="conversation">
+                    {% if history or llm_responses %}
+                    {% else %}
+                        <p>No conversation history yet. Start speaking to begin.</p>
+                    {% endif %}
+                </div>
+                <div class="text-input-container">
+                    <form id="text-message-form" action="/send_message" method="post">
+                        <textarea id="message_text" name="message_text" placeholder="Type a message..." rows="1"></textarea>
+                        <a href="#" 
+                        onclick="document.getElementById('text-message-form').submit(); return false;" 
+                        class="send-button"
+                        title="Send message">
+                            <i class="fa-regular fa-paper-plane"></i>
+                        </a>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
-
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>

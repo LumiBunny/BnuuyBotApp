@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, jsonify, Response, stream_with_context
+from flask import Flask, render_template, redirect, url_for, jsonify, Response, stream_with_context, request
 from stt_module import SpeechToText
 from tts_module import TTSEngine
 from bunnyCompletions import BunnyCompletions
@@ -11,7 +11,6 @@ import time
 import logging
 import json
 import datetime
-import timer
 
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
@@ -218,6 +217,22 @@ def stop():
         except Exception as e:
             print(f"\n[ERROR] Error stopping transcription: {str(e)}")
     
+    return redirect(url_for('index'))
+
+@app.route('/send_message', methods=['POST'])
+def send_message():
+    message_text = request.form.get('message_text', '').strip()
+    
+    if message_text:
+        # Add to history
+        chat_history.add_user_message(message_text)
+        
+        # Send to bunny completions
+        bunny.add_to_queue(message_text)
+        
+        # Update UI
+        transcription_history.append({"text": message_text, "time": datetime.datetime.now().strftime("%H:%M:%S")})
+        
     return redirect(url_for('index'))
 
 @app.route('/stream')

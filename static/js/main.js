@@ -5,7 +5,7 @@ function updateUI(data) {
     // Update status indicators
     const transcriptionStatus = document.querySelectorAll('#status div')[0];
     
-    transcriptionStatus.innerHTML = `Transcription: 
+    transcriptionStatus.innerHTML = `Listening (mic): 
         <span class="status-indicator ${data.is_active ? 'status-active' : 'status-inactive'}"></span>
         ${data.is_active ? 'Active' : 'Inactive'}`;
     
@@ -247,6 +247,36 @@ document.addEventListener('DOMContentLoaded', function() {
     startUpdates();
     fetchUpdates();
     setupStreaming();
+});
+
+// Auto-expanding textarea
+document.addEventListener('DOMContentLoaded', function() {
+    const textarea = document.getElementById('message_text');
+    if (textarea) {
+        // Function to set precise height
+        const setTextareaHeight = function() {
+            textarea.style.height = '40px'; // Set consistent default height
+            
+            // Only expand beyond default if content requires it
+            if (textarea.scrollHeight > 40) {
+                textarea.style.height = Math.min(120, textarea.scrollHeight) + 'px';
+            }
+        };
+        
+        // Set initial height
+        setTextareaHeight();
+        
+        // Update height on input
+        textarea.addEventListener('input', setTextareaHeight);
+        
+        // Handle Enter key for submission
+        textarea.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                document.getElementById('text-message-form').submit();
+            }
+        });
+    }
 });
 
 // Update the end chat handler
