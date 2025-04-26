@@ -26,7 +26,6 @@
             </div>
             
             <div class="sidebar-section">
-                <!-- Mic button with dynamic title -->
                 <form id="mic-form" action="{% if is_active %}/stop{% else %}/start{% endif %}" method="post">
                     <button type="submit" 
                             class="icon-button {% if is_active %}btn-mic-on{% else %}btn-mic-off{% endif %}"
@@ -35,7 +34,6 @@
                     </button>
                 </form>
                 
-                <!-- Timer button with dynamic title -->
                 <form id="timer-form" action="{% if timer_active %}/stop_timer{% else %}/start_timer{% endif %}" method="post">
                     <button type="submit" 
                             class="icon-button {% if timer_active %}btn-timer-on{% else %}btn-timer-off{% endif %}"
@@ -44,14 +42,12 @@
                     </button>
                 </form>
                 
-                <!-- Clear history button -->
                 <form id="clear-form" action="/clear" method="post">
                     <button type="submit" class="icon-button btn-clear" title="Clear chat window">
                         <i class="fa-solid fa-eraser"></i>
                     </button>
                 </form>
                 
-                <!-- End chat button -->
                 <form id="end-chat-form" action="/end_chat" method="post">
                     <button type="submit" class="icon-button btn-end" title="End chat session">
                         <i class="fa-solid fa-arrow-right-from-bracket"></i>
@@ -70,12 +66,12 @@
                     </div>
                 </form>
             </div>
-            <!-- for testing -->
-            <div class="sidebar-section">
+            <!-- for testing purposes later on. -->
+            <!-- <div class="sidebar-section">
                 <form>
                     <button type="button" onclick="addTestSystemMessage()">Add Test System Message</button>
                 </form>
-            </div>
+            </div> -->
         </div>
 
         <div class="main-content">
@@ -89,17 +85,15 @@
                 <div class="text-input-container">
                     <form id="text-message-form" action="/send_message" method="post">
                         <textarea id="message_text" name="message_text" placeholder="Type a message..." rows="1"></textarea>
-                        <a href="#" 
-                        onclick="document.getElementById('text-message-form').submit(); return false;" 
-                        class="send-button"
-                        title="Send message">
+                        <button type="submit" class="send-button" title="Send message">
                             <i class="fa-regular fa-paper-plane"></i>
-                        </a>
+                        </button>
                     </form>
                 </div>
             </div>
         </div>
     </div>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ajax.js') }}"></script>
 </body>
 </html>

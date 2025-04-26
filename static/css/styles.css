@@ -23,7 +23,7 @@ h1 {
 .container {
     display: flex;
     gap: 20px;
-    min-height: 83vh;
+    min-height: 80vh;
     max-height: 110vh;
 }
 
@@ -33,7 +33,7 @@ h1 {
     background-color: #a0e4f2;
     border-radius: 10px;
     padding: 15px;
-    max-height: 80vh;
+    max-height: 85vh;
     overflow-y: auto;
     font-size: 1.1rem;
 }
@@ -68,7 +68,8 @@ h1 {
     width: 70%;
     display: flex;
     flex-direction: column;
-    height: 83vh; /* Match container height */
+    height: 82vh; /* Match container height */
+    position: relative;
 }
 
 .conversation-container {
@@ -76,6 +77,9 @@ h1 {
     border-radius: 10px;
     padding: 15px;
     margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    height: calc(98.5% - 20px);
 }
 
 #conversation {
@@ -86,9 +90,9 @@ h1 {
     padding-right: 20px;
     background-color: white;
     border-radius: 15px;
-    margin-bottom: 10px;
-    margin-right: 10px;
+    margin: 10px;
     height: calc(99.5vh - 250px);
+    border: 2px solid white;
 }
 
 /* Custom scrollbar for #conversation */
@@ -107,49 +111,6 @@ h1 {
     border-left: 0px solid transparent;
     border-right: 6px solid transparent;
     background-clip: padding-box;
-}
-
-/* Typing indicator styles */
-.typing-indicator {
-  display: flex;
-  flex-direction: column;
-  padding: 12px;
-  background-color: #f0f4c3;
-  margin-bottom: 10px;
-  border-radius: 5px;
-  border-left: 4px solid #8bc34a;
-}
-
-.typing-dots {
-  display: inline-flex;
-  align-items: center;
-}
-
-.typing-dots span {
-  height: 8px;
-  width: 8px;
-  margin: 0 2px;
-  background-color: #8bc34a;
-  border-radius: 50%;
-  opacity: 0.6;
-  animation: typing-dot 1.4s infinite ease-in-out;
-}
-
-.typing-dots span:nth-child(1) {
-  animation-delay: 0s;
-}
-
-.typing-dots span:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.typing-dots span:nth-child(3) {
-  animation-delay: 0.4s;
-}
-
-@keyframes typing-dot {
-  0%, 60%, 100% { transform: translateY(0); }
-  30% { transform: translateY(-5px); }
 }
 
 /* Button styling */
@@ -521,21 +482,23 @@ label[for="user_id"] {
 /* Scroll button */
 .scroll-button {
     position: fixed;
-    bottom: 20px;
-    right: 20px;
+    bottom: 120px;
+    left: 50%;
+    transform: translateX(-50%);
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background-color: #0d6efd;
+    background-color: #27c2c5;
     color: white;
     font-size: 20px;
-    display: none;
-    z-index: 100;
+    z-index: 1000;
     cursor: pointer;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    border: none;
+    box-shadow: 0 0 4px 6px rgba(255, 255, 255, 0.4);
+    border: 1px solid white;
+    display: none;
 }
 
 .scroll-button:hover {
     background-color: #0a58ca;
+    opacity: 1;
 }

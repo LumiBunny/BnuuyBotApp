@@ -4,39 +4,36 @@ This project is an AI virtual assistant chatbot that uses speech recognition, te
 
 The project was a way for me to get back into learning coding again by learning how to use Python and studying the general functions and usage of LLMs within NLP. The project has slowly become a hybrid study on the use and understanding of the English language just as much as it is the study of LLMs.
 
-## Version 0.3.4 Notes 📝 (April 24, 2023): User profiles and long term memory!
+## Version 0.4.4 Notes 📝 (April 26, 2023): Browser UI Update!
+Overhauled the browser UI to make it more visually pleasing and user friendly.
 
-+ [User Profiles](#user_profiles) User Profiles
-+ [Long Term Memory](#long_term_memory) Long Term Memory
-+ [UI Improvements](#ui_improvements) UI Improvements
++ [Buttons](#buttons) Buttons
++ [Chat Window](#chat_window) Chat Window Improvements
++ [Text Input](#text_input) Text Input Improvements
++ [User Profile Management](#user_profile_management) User Profile Management
++ [Style Improvements](#style_improvements) Style Improvements
 + [Bug Fixes](#bug_fixes) Bug Fixes
 
-### <a name="user_profiles"></a>User Profiles! 👥
-Integrated a user profile module, enabling the app to save relevant information about the user to a json file. This includes things like preferences (likes and dislikes), hobbies, interests, important dates, and anything else that might be relevant to the user. The app will use this information to make the conversation more personalized to the user.
+### <a name="buttons"></a>Buttons! 🔘
+Updated the buttons to be more visually pleasing and user friendly. The Listening (mic) and self-prompting (timer) buttons now change colour to indicate if that feature is on or off, and the status of these features are clearly visible to the user just above the buttons.
 
-### <a name="long_term_memory"></a>Long Term Memory! 🧠
-One of the biggest "problems" with LLMs as chatbots is the limitations of the context window, as well as not being able to retain memories from one conversation to the next. Implementing long term memory would allow the AI to remember things across conversations, be able to keep conversations going and be more useful in a conversation. 
+### <a name="chat_window"></a>Chat Window Improvements! 💬
+The chat window now has a scrollbar to make it easier to read the conversation, and the chat bubbles are now a bit larger and more visually pleasing. A scroll to bottom button has been added to the chat window to make it easier to return to the current position in the conversation. The chat window now scales with the size of the text input.
 
-At the moment I only have the base framework set up, with a simple memory module, and a preferences extraction module.
+### <a name="text_input"></a>Text Input Improvements! ⌨️
+Added a text input feature to allow for typing messages to the AI, which will continue to use TTS to reply to the user. Text input now scales with the size of the written message for easier readability, and a scrollbar was added in case it gets too long. Send button sends the text message directly to the AI in the same way as voice input, in the same queue. Both text input and STT can be used at the same time.
 
-### <a name="ui_improvements"></a>UI Improvements! 💻
-Some improvements and additions have been made to the UI, including:
+### <a name="user_profile_management"></a>User Profile Management! 👥
+Manually input and switch the user profile, allowing for the AI to be more personal in conversation as well as "remember" things relevant to each different user.
 
-+ A more visually pleasing UI, with a side bar.
-+ Added more buttons for better control (listening on/off, timer on/off, clear chat, end chat)
-+ Added manual User ID input for changing the user profile.
-+ Added names to the chat bubbles.
-
-There are still more improvements to make as I go along, but this is a good start.
-Will likely add light/dark mode and other things but what matters most right now is that I have a working UI that allows a visual text output of the chat and ways to control/test it.
-
+### <a name="style_improvements"></a>Style Improvements! 🎨
+Updated the style of the UI to be more visually pleasing and user friendly with the help of updates to the html, css and javascript files. Added AJAX for better seamless functionality. More UI improvements to come in the future, such as dark/light mode and possibly other themes and buttons as needed.
 ### <a name="bug_fixes"></a>Bug Fixes! 🐛
-Some minor bug fixes/corrections have been made, including:
-
-+ Fixed the self prompt timer so that it waits for audio to finish playing before restarting.
-+ Fixed the self prompt timer for the LLM so it doesn't self prompt when the user is speaking/sound is detected.
-+ Fixed the TTS queue so that new audio waits for previous audio to finish before playing (preventing cut off).
-+ While TTS is playing, STT still gathers transcriptions and consolodates them into one, to avoid creating too many transcriptions and a backlog.
++ Fixed a bug where the chat window would not allow scrolling while chat was open.
++ Fixed a bug where ending chat would redirect to a blank html page with only the "chat ended" status.
++ Fixed a bug where AI messages would sometimes duplicate or attempt to do live text response streaming at the same time as a final AI message.
++ Fixed a bug where the chat window would flash white and refresh too often when a new message was added to the chat window.
++ Other minor updates.
 
 ### Future Features 🚀
 
