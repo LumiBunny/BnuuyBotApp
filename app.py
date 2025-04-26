@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, jsonify, Response, stream_with_context
+from flask import Flask, render_template, redirect, url_for, jsonify, Response, request
 from stt_module import SpeechToText
 from tts_module import TTSEngine
 from bunnyCompletions import BunnyCompletions
@@ -11,7 +11,6 @@ import time
 import logging
 import json
 import datetime
-import timer
 
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
@@ -66,7 +65,6 @@ transcription_history = []
 llm_responses = []
 current_text = "Waiting for speech..."
 is_transcribing = False
-current_stream = {"text": "", "complete": False}
 
 def reset_application_state():
     global is_transcribing, current_text
@@ -106,10 +104,6 @@ def handle_final_result(text):
         
         current_text = ""
 
-def handle_stream_fragment(fragment):
-    global current_stream
-    current_stream["text"] += fragment
-
 def handle_completion(text):
     global llm_responses, current_stream
     timestamp = time.strftime("%H:%M:%S")
@@ -117,11 +111,8 @@ def handle_completion(text):
     # Check if this message is already in llm_responses to prevent duplicates
     if not any(response["text"] == text for response in llm_responses):
         llm_responses.append({"text": text, "time": timestamp})
-    
-    current_stream["complete"] = True
 
 stt.on_final_result = handle_final_result
-bunny.on_stream_fragment = handle_stream_fragment
 bunny.on_completion = handle_completion
 
 bunny.start()
@@ -143,23 +134,43 @@ def reset_tts_state():
 
 @app.route('/start_timer', methods=['POST'])
 def start_timer():
+    success = False
+    message = ""
+    
     try:
         prompter.start()
         print("\n[INFO] Self-prompt timer started")
+        success = True
+        message = "Timer started"
     except Exception as e:
-        print(f"\n[ERROR] Error starting timer: {str(e)}")
+        message = f"Error starting timer: {str(e)}"
+        print(f"\n[ERROR] {message}")
     
-    return redirect(url_for('index'))
+    return jsonify({
+        "success": success,
+        "message": message,
+        "timer_active": prompter.is_running
+    })
 
 @app.route('/stop_timer', methods=['POST'])
 def stop_timer():
+    success = False
+    message = ""
+    
     try:
         prompter.stop()
         print("\n[INFO] Self-prompt timer stopped")
+        success = True
+        message = "Timer stopped"
     except Exception as e:
-        print(f"\n[ERROR] Error stopping timer: {str(e)}")
+        message = f"Error stopping timer: {str(e)}"
+        print(f"\n[ERROR] {message}")
     
-    return redirect(url_for('index'))
+    return jsonify({
+        "success": success,
+        "message": message,
+        "timer_active": prompter.is_running
+    })
 
 @app.route('/end_chat', methods=['POST'])
 def end_chat():
@@ -197,52 +208,105 @@ def end_chat():
 @app.route('/start', methods=['POST'])
 def start():
     global is_transcribing
+    success = False
+    message = ""
+    
     if not is_transcribing:
         try:
             is_transcribing = True
             stt.start()
             print("\n[INFO] Transcription started")
+            success = True
+            message = "Transcription started"
         except Exception as e:
-            print(f"\n[ERROR] Error starting transcription: {str(e)}")
+            message = f"Error starting transcription: {str(e)}"
+            print(f"\n[ERROR] {message}")
+    else:
+        message = "Transcription already active"
     
-    return redirect(url_for('index'))
+    return jsonify({
+        "success": success,
+        "message": message,
+        "is_active": is_transcribing
+    })
 
 @app.route('/stop', methods=['POST'])
 def stop():
     global is_transcribing
+    success = False
+    message = ""
+    
     if is_transcribing:
         try:
             is_transcribing = False
             stt.stop()
             print("\n[INFO] Transcription stopped")
+            success = True
+            message = "Transcription stopped"
         except Exception as e:
-            print(f"\n[ERROR] Error stopping transcription: {str(e)}")
+            message = f"Error stopping transcription: {str(e)}"
+            print(f"\n[ERROR] {message}")
+    else:
+        message = "Transcription already inactive"
     
-    return redirect(url_for('index'))
+    return jsonify({
+        "success": success,
+        "message": message,
+        "is_active": is_transcribing
+    })
 
-@app.route('/stream')
-def stream():
-    def generate():
-        global current_stream
-        last_length = 0
-        
-        while True:
-            # If there's new text to send
-            if len(current_stream["text"]) > last_length:
-                new_text = current_stream["text"][last_length:]
-                last_length = len(current_stream["text"])
-                yield f"data: {json.dumps({'text': new_text, 'complete': current_stream['complete']})}\n\n"
-            
-            # If the response is complete, reset and end stream
-            if current_stream["complete"]:
-                current_stream = {"text": "", "complete": False}
-                yield f"data: {json.dumps({'text': '', 'complete': True})}\n\n"
-                break
-                
-            time.sleep(0.1)
+@app.route('/send_message', methods=['POST'])
+def send_message():
+    message_text = request.form.get('message_text', '').strip()
+    success = False
+    message = ""
     
-    return Response(stream_with_context(generate()), 
-                   mimetype='text/event-stream')
+    if message_text:
+        try:
+            # Add to history
+            chat_history.add_user_message(message_text)
+            
+            # Send to bunny completions
+            bunny.add_to_queue(message_text)
+            
+            # Update UI
+            timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+            transcription_history.append({"text": message_text, "time": timestamp})
+            
+            success = True
+            message = "Message sent"
+        except Exception as e:
+            message = f"Error sending message: {str(e)}"
+            print(f"\n[ERROR] {message}")
+    else:
+        message = "Empty message"
+    
+    return jsonify({
+        "success": success,
+        "message": message
+    })
+
+@app.route('/add_system_message', methods=['POST'])
+def add_system_message():
+    try:
+        data = request.get_json()
+        message = data.get('message', '')
+        
+        # Add to both chat history and chat logger
+        chat_history.add_system_message(message)
+        if chat_logger:
+            chat_logger.add_system_message(message)
+            
+        # Also add to your transcription history for UI updates
+        transcription_history.append({
+            "type": "system", 
+            "text": message, 
+            "time": datetime.datetime.now().strftime("%H:%M:%S")
+        })
+        
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
 
 @app.route('/clear', methods=['POST'])
 def clear():
@@ -251,20 +315,35 @@ def clear():
     transcription_history = []
     llm_responses = []
     print("\n[INFO] Visual history cleared, but AI chat context remains")
-    return redirect(url_for('index'))
+    
+    return jsonify({
+        "success": True,
+        "message": "History cleared"
+    })
 
 @app.route('/set_user_id', methods=['POST'])
 def set_user_id():
-    from flask import request
     user_id = request.form.get('user_id', '').strip()
+    success = False
+    message = ""
     
     if user_id:
-        success = bunny.set_user_id(user_id)
-        if success:
-            return redirect(url_for('index'))
+        try:
+            success = bunny.set_user_id(user_id)
+            if success:
+                message = f"User ID set to: {user_id}"
+            else:
+                message = "Failed to set user ID"
+        except Exception as e:
+            message = f"Error setting user ID: {str(e)}"
+            print(f"\n[ERROR] {message}")
+    else:
+        message = "Invalid user ID"
     
-    # If we get here, something went wrong
-    return jsonify({"error": "Invalid user ID"}), 400
+    return jsonify({
+        "success": success,
+        "message": message
+    })
 
 @app.route('/update', methods=['GET'])
 def update():
@@ -291,7 +370,8 @@ def update():
         'is_active': is_transcribing,
         'timer_active': prompter.is_running,
         'llm_responses': llm_responses,
-        'system_messages': formatted_system_messages
+        'system_messages': formatted_system_messages,
+        'user_id': bunny.default_user_id
     })
 
 if __name__ == '__main__':
