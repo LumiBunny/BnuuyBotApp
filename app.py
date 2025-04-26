@@ -101,6 +101,11 @@ def handle_final_result(text):
         processed_text, is_command = voice_manager.process_input(text)
         
         if not is_command:
+            # Signal that processing has started (this will trigger the typing indicator)
+            global current_stream
+            current_stream = {"text": "", "complete": False, "processing_started": True}
+            
+            # Queue the actual processing
             bunny.add_to_queue(processed_text)
         
         current_text = ""

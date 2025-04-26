@@ -132,6 +132,17 @@ function addTestSystemMessage() {
     
     conversationDiv.appendChild(systemMessageDiv);
     conversationDiv.scrollTop = conversationDiv.scrollHeight;
+    
+    // Send the test message to the server
+    fetch('/add_system_message', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            message: 'This is a test system message.'
+        })
+    });
 }
 
 // Function to fetch updates from the server
@@ -156,53 +167,93 @@ let updateInterval;
 function setupStreaming() {
     const source = new EventSource('/stream');
     const conversationDiv = document.getElementById('conversation');
-    let currentStreamingDiv = null;
+    let responseText = "";
     
     source.onmessage = function(event) {
         const data = JSON.parse(event.data);
-        const wasAtBottom = isScrolledToBottom(conversationDiv);
+        console.log("Received event data:", data);
         
-        // If this is new text and we don't have a streaming div yet, create one
-        if (data.text && !currentStreamingDiv) {
-            // Create a div with the same class as regular AI responses
-            currentStreamingDiv = document.createElement('div');
-            currentStreamingDiv.className = 'bunny-item';
-            currentStreamingDiv.innerHTML = `
-                <div class="transcript-content"></div>
-                <div class="time">${new Date().toLocaleTimeString()}</div>
-            `;
-            conversationDiv.appendChild(currentStreamingDiv);
+        // Show typing indicator when processing starts
+        if (data.processing_started) {
+            console.log("Processing started, showing typing indicator");
+            showTypingIndicator();
         }
         
-        // Append new text to the streaming content
-        if (data.text && currentStreamingDiv) {
-            const contentDiv = currentStreamingDiv.querySelector('.transcript-content');
-            contentDiv.textContent += data.text;
-            
-            // Only auto-scroll if we were already at the bottom
-            if (wasAtBottom) {
-                conversationDiv.scrollTop = conversationDiv.scrollHeight;
-            } else {
-                // Show the scroll button
-                const scrollButton = createScrollButton(conversationDiv);
-                if (scrollButton) scrollButton.style.display = 'block';
-            }
+        // Collect text but don't display it yet
+        if (data.text) {
+            responseText += data.text;
         }
         
-        // If complete, just close the connection and prepare for next message
+        // When complete, display the full message at once
         if (data.complete) {
+            // Hide typing indicator
+            hideTypingIndicator();
+            
+            // Only create and display the message if we have text
+            if (responseText) {
+                const wasAtBottom = isScrolledToBottom(conversationDiv);
+                
+                // Create the complete response div
+                const responseDiv = document.createElement('div');
+                responseDiv.className = 'bunny-item';
+                responseDiv.innerHTML = `
+                    <div class="message-name">Bunny</div>
+                    <div class="transcript-content">${responseText}</div>
+                    <div class="time">${new Date().toLocaleTimeString()}</div>
+                `;
+                
+                conversationDiv.appendChild(responseDiv);
+                
+                // Handle scrolling
+                if (wasAtBottom) {
+                    conversationDiv.scrollTop = conversationDiv.scrollHeight;
+                } else {
+                    const scrollButton = createScrollButton(conversationDiv);
+                    if (scrollButton) scrollButton.style.display = 'block';
+                }
+            }
+            
+            // Reset for next message
+            responseText = "";
             source.close();
-            currentStreamingDiv = null;
-            // Reconnect for the next response
             setTimeout(setupStreaming, 1000);
         }
     };
     
     source.onerror = function() {
+        hideTypingIndicator();
         source.close();
-        // Try to reconnect
         setTimeout(setupStreaming, 5000);
     };
+}
+
+function showTypingIndicator() {
+    const conversationDiv = document.getElementById('conversation');
+    // Remove any existing indicators first
+    hideTypingIndicator();
+    
+    // Create and add the indicator
+    const indicator = document.createElement('div');
+    indicator.className = 'typing-indicator';
+    indicator.id = 'typing-indicator';
+    indicator.innerHTML = `
+        <div class="message-name">Bunny</div>
+        <div class="typing-dots">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+        <div class="time">${new Date().toLocaleTimeString()}</div>
+    `;
+    conversationDiv.appendChild(indicator);
+    conversationDiv.scrollTop = conversationDiv.scrollHeight;
+}
+
+function hideTypingIndicator() {
+    const indicator = document.getElementById('typing-indicator');
+    if (indicator) {
+        indicator.remove();
+    }
 }
 
 // Function to check if the user is at the bottom of the conversation

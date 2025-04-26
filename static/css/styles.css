@@ -83,10 +83,73 @@ h1 {
     flex-grow: 1;
     overflow-y: auto;
     padding: 15px;
+    padding-right: 20px;
     background-color: white;
     border-radius: 15px;
     margin-bottom: 10px;
+    margin-right: 10px;
     height: calc(99.5vh - 250px);
+}
+
+/* Custom scrollbar for #conversation */
+#conversation::-webkit-scrollbar {
+    width: 16px;
+}
+
+#conversation::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 16px 12px 16px 12px;
+}
+
+#conversation::-webkit-scrollbar-thumb {
+    background: #61bed2;
+    border-radius: 4px 8px 8px 4px;
+    border-left: 0px solid transparent;
+    border-right: 6px solid transparent;
+    background-clip: padding-box;
+}
+
+/* Typing indicator styles */
+.typing-indicator {
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  background-color: #f0f4c3;
+  margin-bottom: 10px;
+  border-radius: 5px;
+  border-left: 4px solid #8bc34a;
+}
+
+.typing-dots {
+  display: inline-flex;
+  align-items: center;
+}
+
+.typing-dots span {
+  height: 8px;
+  width: 8px;
+  margin: 0 2px;
+  background-color: #8bc34a;
+  border-radius: 50%;
+  opacity: 0.6;
+  animation: typing-dot 1.4s infinite ease-in-out;
+}
+
+.typing-dots span:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.typing-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typing-dot {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-5px); }
 }
 
 /* Button styling */
@@ -324,6 +387,7 @@ label[for="user_id"] {
     font-weight: 400;
     flex-grow: 1;
     padding: 10px 14px 10px 10px;
+    padding-right: 20px;
     min-height: 40px;
     max-height: 120px;
     overflow-y: auto;
@@ -340,12 +404,20 @@ label[for="user_id"] {
 
 /* Hide scrollbar when not needed */
 #message_text::-webkit-scrollbar {
-    width: 8px;
+    width: 16px;
+}
+
+#message_text::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 10px 8px 10px 8px;
 }
 
 #message_text::-webkit-scrollbar-thumb {
-    background-color: #ccc;
-    border-radius: 4px;
+    background: #61bed2;
+    border-radius: 4px 8px 8px 4px;
+    border-left: 0px solid transparent;
+    border-right: 6px solid transparent;
+    background-clip: padding-box;
 }
 
 /* Only show scrollbar when hovering over the textarea */
@@ -366,55 +438,84 @@ label[for="user_id"] {
 
 /* Message styling */
 .message-name {
-    font-family: "Fredoka", sans-serif;
-    font-weight: 500;
-    margin-bottom: 5px;
-    font-weight: 600;
+    font-family: "Jua", sans-serif;
+    font-weight: 400;
+    margin-bottom: 2px;
     font-size: 1.3em;
+    text-transform: capitalize;
 }
 
 .transcript-item .message-name {
-    color: #1565c0; 
+    color: #0096b6; 
 }
 
 .bunny-item .message-name {
-    color: #558b2f;
+    color: #db5076;
 }
 
 .system-message .message-name {
-    color: #c62828;
+    color: #d88400;
+}
+
+.transcript-item, .bunny-item, .system-message {
+    width: calc(80% - 30px);
+    box-sizing: border-box;
+    position: relative;
 }
 
 .transcript-item {
-    padding: 12px;
-    background-color: #e3f2fd;
+    padding: 16px;
+    background-color: #7cebec;
+    color: #44494d;
     margin-bottom: 10px;
-    border-radius: 5px;
-    border-left: 4px solid #2196f3;
+    margin-left: auto;
+    margin-right: 8px;
+    border-radius: 20px 20px 5px 20px;
+    border-left: none;
 }
 
 .bunny-item {
-    padding: 12px;
-    background-color: #f0f4c3;
+    padding: 16px;
+    background-color: #ffcddb;
+    color: #44494d;
     margin-bottom: 10px;
-    border-radius: 5px;
-    border-left: 4px solid #8bc34a;
+    margin-left: 8px;
+    margin-right: auto;
+    border-radius: 20px 20px 20px 5px;
+    border-left: none;
 }
 
 .system-message {
-    padding: 12px;
-    background-color: #ffe0e0;
+    padding: 16px;
+    background-color: #ffe288;
+    color: #44494d;
     margin-bottom: 10px;
-    border-radius: 5px;
-    border-left: 4px solid #ff5252;
+    margin-left: 8px;
+    margin-right: auto;
+    border-radius: 20px 20px 20px 5px;
+    border-left: none;
     font-style: italic;
 }
 
 .time {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
     font-size: 0.8em;
     color: #999;
-    text-align: right;
-    margin-top: 5px;
+    background: transparent;
+    text-align: left;
+    margin-top: 0;
+}
+
+/* Position timestamps for user messages (left side) */
+.transcript-item .time {
+    right: calc(100% + 10px);
+}
+
+/* Position timestamps for AI and system messages (right side) */
+.bunny-item .time, .system-message .time {
+    left: calc(100% + 10px);
 }
 
 /* Scroll button */
