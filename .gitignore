@@ -40,6 +40,7 @@ user_profile_manager/user_profile_testing.py
 *.log
 temp/
 models/
+test.py
 
 # Backup files
 *~
