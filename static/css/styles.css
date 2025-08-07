@@ -68,8 +68,96 @@ h1 {
     width: 70%;
     display: flex;
     flex-direction: column;
-    height: 82vh; /* Match container height */
+    height: 82vh; 
     position: relative;
+}
+
+/* Chat history controls */
+.history-controls {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.history-controls form {
+    margin: 0;
+    padding: 0;
+    display: inline-block;
+    width: auto;
+}
+
+.history-controls .icon-button {
+    width: 52px;
+    height: 44px;
+    margin: 1px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    padding: 0;
+}
+
+.history-list {
+    background-color: #2a2a2a;
+    border-radius: 10px;
+    padding: 10px;
+    margin-top: 10px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.history-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.history-list-header h4 {
+    margin: 0;
+}
+
+.history-file-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.history-file-list li {
+    padding: 8px;
+    border-bottom: 1px solid #3a3a3a;
+}
+
+.history-file-list li:last-child {
+    border-bottom: none;
+}
+
+.history-file-list a {
+    color: #ddd;
+    text-decoration: none;
+    display: block;
+}
+
+.history-file-list a:hover {
+    color: #fff;
+    background-color: #3a3a3a;
+    border-radius: 4px;
+}
+
+.btn-load {
+    background-color: #27c;
+}
+
+.loading-text {
+    color: #999;
+    font-style: italic;
+}
+
+.btn-reset {
+    background-color: #e74c3c;
 }
 
 .conversation-container {
@@ -501,4 +589,44 @@ label[for="user_id"] {
 .scroll-button:hover {
     background-color: #0a58ca;
     opacity: 1;
+}
+
+/* Reset Button Styling */
+.btn-reset {
+    background-color: #ff6b6b;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.3s, transform 0.2s;
+    margin: 5px;
+}
+
+.btn-reset:hover {
+    background-color: #ff5252;
+    transform: scale(1.05);
+}
+
+.btn-reset:active {
+    transform: scale(0.95);
+    background-color: #e74c3c;
+}
+
+/* Make sure the icon is centered */
+.btn-reset i {
+    font-size: 1.1rem;
+}
+
+/* Sidebar section layout */
+.sidebar-section {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 15px;
+    align-items: center;
 }

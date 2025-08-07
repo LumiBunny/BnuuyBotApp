@@ -18,15 +18,17 @@
                     <span class="status-indicator {% if is_active %}status-active{% else %}status-inactive{% endif %}"></span>
                     {% if is_active %}Active{% else %}Inactive{% endif %}
                 </div>
+                <!-- Commented out timer status since we removed self-prompting
                 <div>
                     Self-prompting (timer): 
                     <span class="status-indicator {% if timer_active %}status-active{% else %}status-inactive{% endif %}"></span>
                     {% if timer_active %}Active{% else %}Inactive{% endif %}
                 </div>
+                -->
             </div>
             
             <div class="sidebar-section">
-                <form id="mic-form" action="{% if is_active %}/stop{% else %}/start{% endif %}" method="post">
+                <form id="mic-form" action="{% if is_active %}/stop_listening{% else %}/start_listening{% endif %}" method="post">
                     <button type="submit" 
                             class="icon-button {% if is_active %}btn-mic-on{% else %}btn-mic-off{% endif %}"
                             title="{% if is_active %}Stop listening{% else %}Start listening{% endif %}">
@@ -34,27 +36,47 @@
                     </button>
                 </form>
                 
-                <form id="timer-form" action="{% if timer_active %}/stop_timer{% else %}/start_timer{% endif %}" method="post">
-                    <button type="submit" 
-                            class="icon-button {% if timer_active %}btn-timer-on{% else %}btn-timer-off{% endif %}"
-                            title="{% if timer_active %}Stop self-prompting{% else %}Start self-prompting{% endif %}">
-                        <i class="fa-regular {% if timer_active %}fa-hourglass-half{% else %}fa-hourglass{% endif %}"></i>
+                <form id="end-chat-form" action="/shutdown" method="post">
+                    <button type="submit" class="icon-button btn-end" title="Shut down the application">
+                        <i class="fa-solid fa-power-off"></i>
                     </button>
                 </form>
+            </div>
+            
+            <h3>Chat History</h3>
+            <div class="history-controls">
+                <button type="button" class="icon-button btn-load" title="Load chat history">
+                    <i class="fa-solid fa-folder-open"></i>
+                </button>
                 
-                <form id="clear-form" action="/clear" method="post">
+                <form id="clear-chat-form" action="/clear" method="post">
                     <button type="submit" class="icon-button btn-clear" title="Clear chat window">
                         <i class="fa-solid fa-eraser"></i>
                     </button>
                 </form>
                 
-                <form id="end-chat-form" action="/end_chat" method="post">
-                    <button type="submit" class="icon-button btn-end" title="End chat session">
-                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                <form id="reset-chat-form" action="/reset_chat" method="post">
+                    <button type="submit" class="icon-button btn-reset" title="Reset chat history and context">
+                        <i class="fa-solid fa-rotate-left"></i>
                     </button>
                 </form>
             </div>
             
+            <!-- Hidden history list that appears when Load button is clicked -->
+            <div id="history-list" class="history-list" style="display: none;">
+                <div class="history-list-header">
+                    <h4>Select Chat History</h4>
+                    <button type="button" class="icon-button btn-close" onclick="toggleHistoryList()">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div id="history-files">
+                    <!-- History files will be loaded here via AJAX -->
+                    <p class="loading-text">Loading histories...</p>
+                </div>
+            </div>
+            
+            <!-- Commented out user profile section
             <div class="sidebar-section">
                 <form id="user-id-form" action="/set_user_id" method="post">
                     <div class="input-with-button">
@@ -66,6 +88,8 @@
                     </div>
                 </form>
             </div>
+            -->
+            
             <!-- for testing purposes later on. -->
             <!-- <div class="sidebar-section">
                 <form>
@@ -83,7 +107,7 @@
                     {% endif %}
                 </div>
                 <div class="text-input-container">
-                    <form id="text-message-form" action="/send_message" method="post">
+                    <form id="text-message-form" action="/send_text" method="post">
                         <textarea id="message_text" name="message_text" placeholder="Type a message..." rows="1"></textarea>
                         <button type="submit" class="send-button" title="Send message">
                             <i class="fa-regular fa-paper-plane"></i>

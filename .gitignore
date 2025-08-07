@@ -33,7 +33,8 @@ ENV/
 .DS_Store
 
 # Application-specific
-chat_logs/*.json
+old/
+chat_history/*.json
 data/memories/*.json
 user_profiles/*.json
 user_profile_manager/user_profile_testing.py
