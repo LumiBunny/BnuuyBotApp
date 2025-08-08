@@ -42,6 +42,7 @@ user_profile_manager/user_profile_testing.py
 temp/
 models/
 test.py
+test_preferences_refined.py
 
 # Backup files
 *~

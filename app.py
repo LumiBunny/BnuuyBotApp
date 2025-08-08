@@ -212,7 +212,7 @@ def send_text():
 
 @app.route('/clear', methods=['POST'])
 def clear_chat():
-    """Clear only the UI chat display without resetting the conversation context"""
+    # Clear only the UI chat display without resetting the conversation context
     global transcription_history, llm_responses, current_text
     
     # Clear the visual history
@@ -234,7 +234,7 @@ def end_chat():
 
 @app.route('/reset_chat', methods=['POST'])
 def reset_chat():
-    """Fully reset the chat context and clear UI state"""
+    # Fully reset the chat context and clear UI state
     try:
         # Reset the chat context in the bunny instance
         bunny.reset_chat()

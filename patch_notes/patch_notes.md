@@ -1,4 +1,24 @@
-## Version 0.4.4 Notes 📝 (April 26, 2023): Browser UI Update!
+## Version 0.5.1 Notes 📝 (August 8, 2025): 
+LM Studio had some updates to their API, so I had to update the code to work with the new API. 
+
++ [Chat](#chat) Chat Updates
++ [Chat History](#chat_history) Chat History Updates
++ [Preferences](#preferences) Preference Extractor Updates
++ [UI Improvements](#ui_improvements) UI Improvements
+
+### <a name="chat"></a>Chat Updates! 💬
+LM Studio made some changes to their API allowing for a more streamlined way of handling chat history. The chat history is now handled internally via LM Studio, and no longer needs to be handled in the backend code. This makes chatting between user and LLM much more "natural" as the back and forth is now handled more seamlessly without the need to constantly append and save the chat history and make sure it is part of the LLM's context.
+
+### <a name="chat_history"></a>Chat History Updates! 📚
+Since the chat history and context of the conversation is now directly handled by LM Studio, the ChatHistory Class is now used for logging and saving copies of the chats for later use. These chats are auto saved as a json file. 
+
+### <a name="preferences"></a>Preference Extractor Updates! 💕
+Overhauled the preference extraction module. Many of the changes are to avoid repetitive calls and functions, as well as to make the code more efficient and easier to read. A combination of regex, spacy and sentiment analysis was used to extract preferences from the chat. The module was refined to attempt to handle compound sentences, understand the nuances of adverbs to enhance the user's feelings towards a preference, preferences that are implied by choice of words (example "I love pizza" implies that I like pizza, but saying "I like pizza" does not imply that I love it), handling negations, and handling of compound nouns (example: chocolate ice cream).
+
+### <a name="ui_improvements"></a>UI Improvements! 💻
+Small updates to the user UI in Flask to reflect some of the changes I have been making so far. Currently disabled user profiles, and temporarily removed other buttons. Added a button to allow the user to completely reset/restart the chat.
+
+## Version 0.4.4 Notes 📝 (April 26, 2025): Browser UI Update!
 Overhauled the browser UI to make it more visually pleasing and user friendly.
 
 + [Buttons](#buttons) Buttons
@@ -29,7 +49,7 @@ Updated the style of the UI to be more visually pleasing and user friendly with 
 + Fixed a bug where the chat window would flash white and refresh too often when a new message was added to the chat window.
 + Other minor updates.
 
-## Version 0.3.4 Notes 📝 (April 24, 2023): User profiles and long term memory!
+## Version 0.3.4 Notes 📝 (April 24, 2025): User profiles and long term memory!
 
 + [User Profiles](#user_profiles) User Profiles
 + [Long Term Memory](#long_term_memory) Long Term Memory
@@ -63,7 +83,7 @@ Some minor bug fixes/corrections have been made, including:
 + Fixed the TTS queue so that new audio waits for previous audio to finish before playing (preventing cut off).
 + While TTS is playing, STT still gathers transcriptions and consolodates them into one, to avoid creating too many transcriptions and a backlog.
 
-## Version 0.2.1 Notes 📝 (April 22, 2023): Voice commands!
+## Version 0.2.1 Notes 📝 (April 22, 2025): Voice commands!
 
 ### Adding Voice Commands! 🔊
 I have integrated the very bare bones of a module for the management and usage of **voice commands** for my virtual assistant. So far, I have only added the ability to use some phrases to get the attention of the chatbot via using the command as a part of prompt engineering.

@@ -97,16 +97,12 @@ class ChatHistory:
 
     @classmethod
     def load_from_file(cls, filename, system_prompt=None):
-        """
-        Load a chat history from a file and return a new ChatHistory instance.
-        
-        Args:
-            filename (str): The name of the file to load (without path)
-            system_prompt (str, optional): System prompt to use for the new chat
-            
-        Returns:
-            ChatHistory: A new ChatHistory instance with the loaded messages
-        """
+        # Load a chat history from a file and return a new ChatHistory instance.
+        # Args:
+        #    filename (str): The name of the file to load (without path)
+        #    system_prompt (str, optional): System prompt to use for the new chat
+        # Returns:
+        #    ChatHistory: A new ChatHistory instance with the loaded messages
         history_dir = "chat_history"
         filepath = os.path.join(history_dir, filename)
         

@@ -13,13 +13,9 @@ class BunnyChat:
         self._initialize_chat()
     
     def _initialize_chat(self, initial_messages=None):
-        """
-        Helper method to initialize or reinitialize the chat and history.
-        
-        Args:
-            initial_messages (list, optional): List of messages to initialize the chat with.
-                                             Each message should be a dict with 'role' and 'content'.
-        """
+        # Helper method to initialize or reinitialize the chat and history.
+        # Args: initial_messages (list, optional): List of messages to initialize the chat with.
+        # Each message should be a dict with 'role' and 'content'.
         # Create ChatHistory with system prompt (for user usage)
         self.chat_history = ChatHistory(self.system_prompt)
         
@@ -43,61 +39,44 @@ class BunnyChat:
                     self.chat = lms.Chat(self.system_prompt)
     
     def reset_chat(self, initial_messages=None):
-        """
-        Reset the chat to its initial state, optionally with a set of initial messages.
-        
-        Args:
-            initial_messages (list, optional): List of messages to initialize the chat with.
-                                             Each message should be a dict with 'role' and 'content'.
-        
-        Returns:
-            bool: True if reset was successful
-        """
+        # Reset the chat to its initial state, optionally with a set of initial messages.
+        # Args: initial_messages (list, optional): List of messages to initialize the chat with.
+        # Each message should be a dict with 'role' and 'content'.
+        # Returns: bool: True if reset was successful
         print("Resetting chat...")
         self._initialize_chat(initial_messages=initial_messages)
         print("Chat has been reset to initial state.")
         return True
     
     def add_user_message(self, message, user_id='lumi'):
-        """
-        Add a user message to the chat history and chat context.
-        
-        Args:
-            message (str): The message content
-            user_id (str, optional): The ID of the user sending the message. Defaults to 'lumi'.
-        """
+        # Add a user message to the chat history and chat context.
+        # Args:
+        #    message (str): The message content
+        #    user_id (str, optional): The ID of the user sending the message. 
+        # Defaults to 'lumi'.
         self.chat_history.add_user_message(message, user_id=user_id)
         self.chat.add_user_message(message)
     
     def add_assistant_message(self, content):
-        """
-        Add an assistant message to the chat history and chat context.
-        
-        Args:
-            content (str): The message content
-        """
+        # Add an assistant message to the chat history and chat context.
+        # Args:
+        #    content (str): The message content
         self.chat_history.add_assistant_message(content)
         self.chat.add_assistant_response(content)
     
     def get_response(self):
-        """
-        Get a response from the model based on the current chat context.
-        
-        Returns:
-            str: The generated response
-        """
+        # Get a response from the model based on the current chat context.
+        # Returns:
+        #    str: The generated response
         response = ""
         for fragment in self.model.respond_stream(self.chat):
             response += fragment.content
         return response
     
     def get_response_stream(self):
-        """
-        Get a streaming response from the model.
-        
-        Returns:
-            generator: A generator that yields response fragments
-        """
+        # Get a streaming response from the model.
+        # Returns:
+        #    generator: A generator that yields response fragments
         return self.model.respond_stream(self.chat)
     
     def run_chat_loop(self):
