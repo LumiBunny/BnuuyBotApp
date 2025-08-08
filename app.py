@@ -187,13 +187,7 @@ def load_chat_history():
         app.logger.error(f"Error loading chat history: {str(e)}")
         return jsonify({"success": False, "error": f"Failed to load chat history: {str(e)}"}), 500
 
-@app.route('/clear', methods=['POST'])
-def clear_chat():
-    try:
-        bunny.clear_history()
-        return jsonify({"success": True, "message": "Chat history cleared"})
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)})
+
 
 @app.route('/get_transcription', methods=['GET'])
 def get_transcription():
@@ -217,16 +211,20 @@ def send_text():
         return jsonify({"success": False, "message": "No text provided"})
 
 @app.route('/clear', methods=['POST'])
-def clear():
-    global transcription_history, llm_responses
+def clear_chat():
+    """Clear only the UI chat display without resetting the conversation context"""
+    global transcription_history, llm_responses, current_text
+    
     # Clear the visual history
     transcription_history = []
     llm_responses = []
-    print("\n[INFO] Visual history cleared")
+    current_text = "Waiting for speech..."
+    
+    print("\n[INFO] Chat display cleared (UI only)")
     
     return jsonify({
         "success": True,
-        "message": "History cleared"
+        "message": "Chat display cleared. The conversation context is still active."
     })
 
 @app.route('/end_chat', methods=['POST'])
@@ -236,21 +234,35 @@ def end_chat():
 
 @app.route('/reset_chat', methods=['POST'])
 def reset_chat():
+    """Fully reset the chat context and clear UI state"""
     try:
+        # Reset the chat context in the bunny instance
         bunny.reset_chat()
         
-        global transcription_history, llm_responses, current_text
+        # Clear the UI state
+        global transcription_history, llm_responses, current_text, is_transcribing
         transcription_history = []
         llm_responses = []
         current_text = "Waiting for speech..."
+        is_transcribing = False
         
+        # Stop any ongoing TTS
         tts.stop()
+        
+        # Stop any ongoing STT
+        try:
+            stt.stop()
+        except:
+            pass  # Ignore if STT wasn't running
+        
+        print("\n[INFO] Chat fully reset - context and UI cleared")
         
         return jsonify({
             "success": True,
-            "message": "Chat history and context have been reset"
+            "message": "Chat has been fully reset. All context has been cleared."
         })
     except Exception as e:
+        app.logger.error(f"Error resetting chat: {str(e)}")
         return jsonify({
             "success": False,
             "message": f"Error resetting chat: {str(e)}"

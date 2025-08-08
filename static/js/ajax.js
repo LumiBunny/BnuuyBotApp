@@ -66,11 +66,17 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Intercept clear form submission
+    // Handle clear chat form submission (UI only)
     const clearForm = document.getElementById('clear-chat-form');
     if (clearForm) {
         clearForm.addEventListener('submit', function(e) {
             e.preventDefault();
+            
+            // Show loading state on the clear button
+            const clearButton = this.querySelector('button[type="submit"]');
+            const originalHTML = clearButton.innerHTML;
+            clearButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+            clearButton.disabled = true;
             
             fetch('/clear', {
                 method: 'POST',
@@ -80,16 +86,32 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(response => response.json())
             .then(data => {
-                console.log('Clear response:', data);
+                console.log('Clear chat response:', data);
+                
+                // Clear the conversation div
+                const conversationDiv = document.getElementById('conversation');
+                if (conversationDiv) {
+                    conversationDiv.innerHTML = '';
+                }
+                
+                // Show success message
                 if (data.success) {
-                    // Clear the conversation div
-                    const conversationDiv = document.getElementById('conversation');
-                    if (conversationDiv) {
-                        conversationDiv.innerHTML = '';
-                    }
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = 'system-message';
+                    messageDiv.textContent = data.message || 'Chat display has been cleared.';
+                    conversationDiv.appendChild(messageDiv);
+                    conversationDiv.scrollTop = conversationDiv.scrollHeight;
                 }
             })
-            .catch(error => console.error('Error clearing conversation:', error));
+            .catch(error => {
+                console.error('Error clearing chat:', error);
+                alert('Failed to clear chat. Please check console for details.');
+            })
+            .finally(() => {
+                // Restore button state
+                clearButton.innerHTML = originalHTML;
+                clearButton.disabled = false;
+            });
         });
     }
 
@@ -341,58 +363,70 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Handle reset chat form submission
+    // Handle reset chat form submission (full reset)
     const resetChatForm = document.getElementById('reset-chat-form');
     if (resetChatForm) {
         resetChatForm.addEventListener('submit', function(e) {
             e.preventDefault();
             
             // Show confirmation dialog
-            if (confirm('Are you sure you want to reset the chat history and context? This will clear all conversation history and start a new chat.')) {
+            if (confirm('Are you sure you want to reset the chat? This will clear all conversation history and context, and start a fresh chat session.')) {
                 // Show loading state
-                const button = this.querySelector('button');
-                const icon = button ? button.querySelector('i') : null;
-                if (icon) {
-                    const originalIcon = icon.className;
-                    icon.className = 'fa-solid fa-spinner fa-spin';
+                const button = this.querySelector('button[type="submit"]');
+                const originalHTML = button.innerHTML;
+                button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+                button.disabled = true;
+                
+                // Send reset request
+                fetch('/reset_chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Reset chat response:', data);
                     
-                    // Send reset request
-                    fetch('/reset_chat', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        // Restore icon
-                        if (icon) {
-                            icon.className = originalIcon;
-                        }
+                    // Clear the conversation display
+                    const conversationDiv = document.getElementById('conversation');
+                    if (conversationDiv) {
+                        conversationDiv.innerHTML = '';
                         
+                        // Show success message in the chat
                         if (data.success) {
-                            // Clear the conversation display
-                            const conversation = document.getElementById('conversation');
-                            if (conversation) {
-                                conversation.innerHTML = '';
-                            }
-                            
-                            // Show success message
-                            alert(data.message);
-                        } else {
-                            alert('Error: ' + (data.message || 'Failed to reset chat'));
+                            const messageDiv = document.createElement('div');
+                            messageDiv.className = 'system-message';
+                            messageDiv.textContent = data.message || 'Chat has been fully reset. Starting a new conversation.';
+                            conversationDiv.appendChild(messageDiv);
+                            conversationDiv.scrollTop = conversationDiv.scrollHeight;
                         }
-                    })
-                    .catch(error => {
-                        console.error('Error resetting chat:', error);
-                        alert('Error resetting chat. Please try again.');
-                        
-                        // Restore icon on error
-                        if (icon) {
-                            icon.className = originalIcon;
-                        }
-                    });
-                }
+                    }
+                    
+                    // Update UI state
+                    updateMicStatus(false);
+                    
+                    if (!data.success) {
+                        throw new Error(data.message || 'Failed to reset chat');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error resetting chat:', error);
+                    
+                    // Show error message
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'error-message';
+                    errorDiv.textContent = `Error: ${error.message || 'Failed to reset chat'}`;
+                    
+                    const conversationDiv = document.getElementById('conversation') || document.body;
+                    conversationDiv.appendChild(errorDiv);
+                    conversationDiv.scrollTop = conversationDiv.scrollHeight;
+                })
+                .finally(() => {
+                    // Restore button state
+                    button.innerHTML = originalHTML;
+                    button.disabled = false;
+                });
             }
         });
     }

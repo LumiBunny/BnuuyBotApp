@@ -2,7 +2,7 @@ import lmstudio as lms
 from chatHistory import ChatHistory
 
 class BunnyChat:
-    def __init__(self, model_name="darkidol-llama-3.1-13.3b-instruct-1.2-uncensored"):
+    def __init__(self, model_name="darkidol-llama-3.1-8b-instruct-1.2-uncensored"):
         print("Initializing model...")
         self.model = lms.llm(model_name)
         print("Model loaded!")
