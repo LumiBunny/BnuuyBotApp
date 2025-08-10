@@ -15,6 +15,11 @@ class InterestTracker:
         self.interest_decay_days = 30  # How long before interests start fading
         self.mention_threshold = 3     # How many mentions to consider "strong interest"
         
+        # Sentiment indicators
+        self.positive_indicators = ['love', 'like', 'enjoy', 'adore', 'prefer', 'favorite', 'fond of']
+        self.negative_indicators = ['hate', 'dislike', 'boring', 'annoying', 'terrible', 'awful', 'worst']
+        self.negation_words = ['not', 'never', 'dont', "don't", 'doesnt', "doesn't"]
+        
     def track_conversation_interests(self, user_id: str, conversation_text: str, 
                                    timestamp: datetime = None) -> Dict[str, float]:
         """
@@ -24,28 +29,60 @@ class InterestTracker:
         if timestamp is None:
             timestamp = datetime.now()
             
+        logger.info(f"Analyzing interests in: {conversation_text[:100]}...")
+        
         # Extract topics mentioned (simple keyword approach)
         interests = self._extract_topics_from_text(conversation_text)
+        logger.info(f"Extracted interests: {interests}")
         
         # Update interest scores based on frequency and recency
         updated_interests = {}
         for topic, mentions in interests.items():
-            score = self._calculate_interest_score(user_id, topic, mentions, timestamp)
+            score = self._calculate_interest_score(user_id, topic, mentions, timestamp, conversation_text)
             updated_interests[topic] = score
             
-            # Store in memory if significant
-            if score > 0.6:
-                if self.memory_manager:
-                    self.memory_manager.add_memory(
-                        user_id,
-                        f"Showed strong interest in {topic} (score: {score:.2f})",
-                        "interest",
-                        importance=score,
-                        tags=[topic, "interest", "conversation"],
-                        context=conversation_text[:100] + "..."
+            # Always save to interests storage (separate from important memories)
+            if self.memory_manager and hasattr(self.memory_manager, 'add_interest'):
+                try:
+                    self.memory_manager.add_interest(
+                        user_id=user_id,
+                        topic=topic,
+                        score=score,
+                        context=conversation_text[:200]  # Save a snippet for context
                     )
+                    logger.info(f"Updated interest score for {topic}: {score:.2f}")
+                except Exception as e:
+                    logger.error(f"Error updating interest for {topic}: {e}")
         
         return updated_interests
+    
+    def get_top_interests(self, user_id: str, limit: int = 5) -> List[Dict]:
+        """Get user's top interests based on stored interest scores."""
+        if not self.memory_manager or not hasattr(self.memory_manager, 'get_interests'):
+            logger.warning("MemoryManager not available or missing get_interests method")
+            return []
+            
+        try:
+            # Get all interests with score > 0
+            interests = self.memory_manager.get_interests(user_id, min_score=0.01)
+            
+            if not interests:
+                logger.debug(f"No interests found for user {user_id}")
+                return []
+            
+            # Convert to list of dicts and sort by score (descending)
+            sorted_interests = [
+                {'topic': topic, 'score': float(data['score']), 'last_updated': data['last_updated']}
+                for topic, data in interests.items()
+            ]
+            sorted_interests.sort(key=lambda x: x['score'], reverse=True)
+            
+            logger.debug(f"Retrieved {len(sorted_interests)} interests for user {user_id}")
+            return sorted_interests[:limit]
+            
+        except Exception as e:
+            logger.error(f"Error getting top interests for {user_id}: {e}")
+            return []
     
     def _extract_topics_from_text(self, text: str) -> Dict[str, int]:
         """Extract topics and count mentions from conversation text."""
@@ -73,53 +110,85 @@ class InterestTracker:
                 
         return topic_mentions
     
+    def _detect_sentiment(self, text: str, topic: str) -> float:
+        """Detect sentiment about a topic in the given text.
+        Returns: 
+            float: Sentiment score between -1.0 (negative) and 1.0 (positive)
+        """
+        text_lower = text.lower()
+        sentiment = 0.0
+        
+        # Check for positive indicators
+        for word in self.positive_indicators:
+            if word in text_lower:
+                # Check for negation (e.g., "don't like")
+                if any(neg in text_lower.split(text_lower.split(word)[0])[-1].split()[:2] for neg in self.negation_words):
+                    sentiment -= 0.2
+                else:
+                    sentiment += 0.3
+        
+        # Check for negative indicators
+        for word in self.negative_indicators:
+            if word in text_lower:
+                # Check for negation (e.g., "not bad")
+                if any(neg in text_lower.split(text_lower.split(word)[0])[-1].split()[:2] for neg in self.negation_words):
+                    sentiment += 0.2
+                else:
+                    sentiment -= 0.3
+        
+        return max(-1.0, min(1.0, sentiment))  # Clamp between -1.0 and 1.0
+
     def _calculate_interest_score(self, user_id: str, topic: str, 
-                                current_mentions: int, timestamp: datetime) -> float:
+                                current_mentions: int, timestamp: datetime, 
+                                conversation_text: str = "") -> float:
         """Calculate interest score based on frequency, recency, and history."""
-        # Base score from current mentions
-        base_score = min(current_mentions * 0.2, 1.0)
+        # Get existing interest score from MemoryManager
+        existing_score = 0.0
+        if self.memory_manager and hasattr(self.memory_manager, 'get_interests'):
+            try:
+                existing_interests = self.memory_manager.get_interests(user_id)
+                if topic in existing_interests:
+                    existing_score = float(existing_interests[topic].get('score', 0.0))
+                    logger.debug(f"Found existing score for {topic}: {existing_score}")
+            except Exception as e:
+                logger.warning(f"Could not get existing interests: {e}")
         
-        # Get historical interest if memory manager available
-        if self.memory_manager:
-            # Look for past interest memories
-            past_memories = self.memory_manager.find_relevant_memories(user_id, topic, max_results=10)
-            interest_memories = [m for m in past_memories if m.category == "interest"]
+        # Base score from current mentions (more generous scoring)
+        base_score = min(current_mentions * 0.15, 0.4)  # Increased from 0.1 to 0.15
+        
+        # Get sentiment score for this mention
+        sentiment = self._detect_sentiment(conversation_text, topic)
+        
+        # Adjust base score based on sentiment (more impactful)
+        sentiment_boost = sentiment * 0.25  # Increased from 0.2 to 0.25
+        base_score += sentiment_boost
+        
+        # Ensure base score is positive for any mention
+        base_score = max(base_score, 0.1)  # Minimum score for any detected interest
+        
+        # Handle accumulation differently based on whether interest exists
+        if existing_score > 0:
+            # Existing interest: accumulate with decay to prevent runaway growth
+            decay_factor = 0.85  # Slightly more aggressive decay
+            combined_score = (existing_score * decay_factor) + base_score
             
-            # Boost score based on consistent interest
-            if len(interest_memories) >= self.mention_threshold:
-                base_score *= 1.5  # 50% boost for consistent interest
-                
-            # Apply recency decay
-            recent_mentions = sum(1 for m in interest_memories 
-                                if (timestamp - m.timestamp).days <= self.interest_decay_days)
-            if recent_mentions > 0:
-                base_score *= (1 + recent_mentions * 0.1)
-        
-        return min(base_score, 1.0)
-    
-    def get_top_interests(self, user_id: str, limit: int = 5) -> List[Dict]:
-        """Get user's top interests based on memory analysis."""
-        if not self.memory_manager:
-            return []
+            # Bonus for building on existing interest
+            combined_score += 0.08  # Increased bonus
             
-        # Get all interest memories
-        interest_memories = self.memory_manager.get_memories(user_id, category="interest")
+            logger.debug(f"Accumulating: {existing_score:.3f} * {decay_factor} + {base_score:.3f} + 0.08 = {combined_score:.3f}")
+        else:
+            # New interest: start with base score
+            combined_score = base_score
+            logger.debug(f"New interest: starting with {combined_score:.3f}")
         
-        # Count and score interests
-        interest_scores = {}
-        for memory in interest_memories:
-            for tag in memory.tags:
-                if tag != "interest" and tag != "conversation":
-                    current_score = interest_scores.get(tag, 0)
-                    # Weight by importance and recency
-                    days_old = (datetime.now() - memory.timestamp).days
-                    recency_factor = max(0.1, 1 - (days_old / self.interest_decay_days))
-                    interest_scores[tag] = current_score + (memory.importance * recency_factor)
+        # Ensure score is between 0 and 1, never negative
+        final_score = max(0.0, min(1.0, combined_score))
         
-        # Sort and return top interests
-        sorted_interests = sorted(interest_scores.items(), key=lambda x: x[1], reverse=True)
-        return [{"topic": topic, "score": score} for topic, score in sorted_interests[:limit]]
-    
+        logger.debug(f"Interest score calculation for {topic}: existing={existing_score:.3f}, "
+                    f"base={base_score:.3f}, sentiment={sentiment:.3f}, final={final_score:.3f}")
+        
+        return final_score
+
     def suggest_conversation_topics(self, user_id: str) -> List[str]:
         """Suggest conversation topics based on user's interests."""
         top_interests = self.get_top_interests(user_id, limit=3)

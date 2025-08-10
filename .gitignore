@@ -24,6 +24,8 @@ var/
 venv/
 ENV/
 .env
+.venv/
+.pytest_cache/
 
 # IDE-specific files
 .idea/
@@ -33,14 +35,17 @@ ENV/
 .DS_Store
 
 # Application-specific
-user_data/
 old/
+wiki/
+tests/
+user_data/
 chat_history/*.json
+data/memories/*.json
+user_profiles/*.json
+user_profile_manager/user_profile_testing.py
 *.log
 temp/
 models/
-test.py
-test_preferences_refined.py
 
 # Backup files
 *~
@@ -50,7 +55,3 @@ test_preferences_refined.py
 # Local configuration
 config.local.json
 secrets.json
-run_interest_tests.py
-.gitignore
-wiki/mood_tracking.md
-test_interest_tracker.py

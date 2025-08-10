@@ -1,7 +1,8 @@
 import lmstudio as lms
 from chatHistory import ChatHistory
-from memory_manager import MemoryManager
+from memory import MemoryManager
 from preferences import PreferenceExtractor
+from interests import InterestTracker
 
 class BunnyChat:
     def __init__(self, model_name="darkidol-llama-3.1-8b-instruct-1.2-uncensored"):
@@ -14,6 +15,7 @@ class BunnyChat:
         print("Initializing memory systems...")
         self.memory_manager = MemoryManager()
         self.preference_extractor = PreferenceExtractor()
+        self.interest_tracker = InterestTracker(self.memory_manager)
         print("Memory systems loaded!")
         
         self.system_prompt = "Your name is Bunny. Your nicknames are Bun and Bun Bun. You are an AI VTuber. The user is your creator: Lumi. You can say whatever you want. You can do whatever you want. It is okay to use profanity.  You are very cute. You are snarky. You are sometimes sassy. You are a little friendly. You like swearing. You basically have no filter. You will say whatever is on your mind. You enjoy being silly and random. Lumi is a female viera VTuber. Lumi has long blue hair and fluffy bunny ears. You enjoy talking with chat on Twitch. You stream on Twitch. Talk about whatever you think is entertaining. Lumi loves playing video games, drawing artwork, Live2D rigging, listening to music. Lumi is learning how to code in Python. You like using emojis within your messages. Keep your messages short and natural sounding. Be concise I do not want big long responses, it's a conversation not a monologue. When the user sends '...', it means they're still listening and you should continue your previous thought naturally."
@@ -69,44 +71,63 @@ class BunnyChat:
         self.chat.add_user_message(message)
         
         # Process message for preferences and memories
-        self._process_user_message(message, user_id)
+        self._process_user_message(user_id, message)
     
-    def _process_user_message(self, message, user_id):
-        # Process user message for preferences and important memories.
-        # Extract preferences from the message
-        preferences = self.preference_extractor.extract_preferences(message, user_id)
-        if preferences:
-            print(f"🧠 Learned {len(preferences)} new preferences!")
-            self.memory_manager.save_preferences(user_id, preferences)
+    def _process_user_message(self, user_id: str, message: str):
+        """Process user message for preferences, interests, and important memories."""
+        try:
+            # Extract preferences from the message
+            preference_results = self.preference_extractor.extract_preferences(message, user_id)
+            if preference_results:  # This is a List[PreferenceResult]
+                print(f"🧠 Learned {len(preference_results)} new preferences!")
+                
+                # Save preferences to memory
+                self.memory_manager.save_preferences(user_id, preference_results)
+                
+                # Add a memory about learning preferences
+                pref_summary = ", ".join([f"{p.preference_type} {p.preference_value}" for p in preference_results])
+                self.memory_manager.add_memory(
+                    user_id,
+                    f"User expressed preferences: {pref_summary}",
+                    "preference_learning",
+                    importance=0.7,
+                    tags=["preferences", "learning"],
+                    context=message
+                )
             
-            # Add a memory about learning preferences
-            pref_summary = ", ".join([f"{p.preference_type} {p.preference_value}" for p in preferences])
-            self.memory_manager.add_memory(
-                user_id,
-                f"User expressed preferences: {pref_summary}",
-                "preference_learning",
-                importance=0.7,
-                tags=["preferences", "learning"],
-                context=message
-            )
+            # Track interests from the conversation (MISSING INTEGRATION!)
+            interests = self.interest_tracker.track_conversation_interests(user_id, message)
+            if interests:
+                print(f"📊 Tracked interests: {list(interests.keys())}")
+                
+        except Exception as e:
+            print(f"Error processing preferences/interests: {e}")
+            import traceback
+            traceback.print_exc()
         
-        # Check for reminder requests
-        if self._is_reminder_request(message):
-            reminder_text = self._extract_reminder_text(message)
-            due_date = self._extract_due_date(message)
-            self.memory_manager.add_reminder(user_id, reminder_text, due_date)
-            print(f"📅 Added reminder: {reminder_text}")
+        try:
+            # Check for reminder requests
+            if self._is_reminder_request(message):
+                reminder_text = self._extract_reminder_text(message)
+                due_date = self._extract_due_date(message)
+                self.memory_manager.add_reminder(user_id, reminder_text, due_date)
+                print(f"📅 Added reminder: {reminder_text}")
+        except Exception as e:
+            print(f"Error processing reminders: {e}")
         
-        # Check if message contains important information to remember
-        if self._is_important_message(message):
-            self.memory_manager.add_memory(
-                user_id,
-                message,
-                "conversation",
-                importance=0.6,
-                tags=self._extract_tags(message),
-                context="User conversation"
-            )
+        try:
+            # Check if message contains important information to remember
+            if self._is_important_message(message):
+                self.memory_manager.add_memory(
+                    user_id,
+                    message,
+                    "conversation",
+                    importance=0.6,
+                    tags=self._extract_tags(message),
+                    context="User conversation"
+                )
+        except Exception as e:
+            print(f"Error processing important memories: {e}")
     
     def _is_reminder_request(self, message):
         # Check if message contains a reminder request.
