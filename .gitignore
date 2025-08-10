@@ -53,3 +53,7 @@ test_preferences_refined.py
 # Local configuration
 config.local.json
 secrets.json
+run_interest_tests.py
+.gitignore
+wiki/mood_tracking.md
+test_interest_tracker.py
