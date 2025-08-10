@@ -1,5 +1,5 @@
-from datetime import datetime
-from typing import Dict, List, Optional
+from datetime import datetime, timedelta
+from typing import Dict, List
 import logging
 
 logger = logging.getLogger(__name__)
@@ -52,13 +52,13 @@ class InterestTracker:
         # Simple topic extraction - you could enhance this with spaCy later
         topic_keywords = {
             'gaming': ['game', 'gaming', 'play', 'minecraft', 'zelda', 'steam', 'xbox', 'playstation'],
-            'cooking': ['cook', 'recipe', 'food', 'kitchen', 'bake', 'meal', 'chef', 'ingredient'],
+            'cooking': ['cook', 'recipe', 'food', 'kitchen', 'bake', 'meal', 'chef', 'ingredient', 'pasta'],
             'art': ['art', 'draw', 'paint', 'sketch', 'creative', 'design', 'canvas', 'brush'],
             'music': ['music', 'song', 'band', 'listen', 'album', 'concert', 'guitar', 'piano'],
             'fitness': ['workout', 'gym', 'exercise', 'run', 'fitness', 'health', 'training', 'cardio'],
             'travel': ['travel', 'trip', 'vacation', 'visit', 'explore', 'country', 'flight', 'hotel'],
             'technology': ['tech', 'computer', 'programming', 'code', 'software', 'app', 'website'],
-            'movies': ['movie', 'film', 'watch', 'cinema', 'netflix', 'series', 'show', 'episode'],
+            'movies': ['movie', 'film', 'cinema', 'series', 'show', 'episode', 'netflix'],
             'reading': ['book', 'read', 'novel', 'author', 'chapter', 'library', 'story', 'literature'],
             'pets': ['dog', 'cat', 'pet', 'puppy', 'kitten', 'animal', 'vet', 'walk']
         }
