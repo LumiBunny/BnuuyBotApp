@@ -33,6 +33,7 @@ ENV/
 .DS_Store
 
 # Application-specific
+user_data/
 old/
 chat_history/*.json
 data/memories/*.json
