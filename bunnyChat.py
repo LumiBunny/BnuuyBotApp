@@ -74,7 +74,7 @@ class BunnyChat:
         self._process_user_message(user_id, message)
     
     def _process_user_message(self, user_id: str, message: str):
-        """Process user message for preferences, interests, and important memories."""
+        # Process user message for preferences, interests, and important memories.
         try:
             # Extract preferences from the message
             preference_results = self.preference_extractor.extract_preferences(message, user_id)

@@ -1,10 +1,7 @@
 import logging
 from typing import Dict, List, Optional, Any
-from datetime import datetime
 import json
-
-# Import our custom mood components
-from .mood_detector import HybridMoodDetector, MoodResult
+from .mood_detector import HybridMoodDetector
 from .dynamic_mood_context import DynamicMoodContext
 
 logger = logging.getLogger(__name__)

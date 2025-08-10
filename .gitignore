@@ -35,6 +35,7 @@ ENV/
 .DS_Store
 
 # Application-specific
+saved_chats/
 old/
 wiki/
 tests/

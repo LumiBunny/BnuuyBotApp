@@ -4,8 +4,6 @@ from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict
 from pathlib import Path
 import logging
-
-# Import your preference types
 from preferences import PreferenceResult
 
 logger = logging.getLogger(__name__)
@@ -42,6 +40,7 @@ class MemoryManager:
     │   ├── profile/
     │   │   ├── personal_info.json
     │   │   ├── preferences.json
+    │   │   ├── interests.json
     │   │   └── important_memories.json
     │   ├── conversations/
     │   │   ├── summaries/

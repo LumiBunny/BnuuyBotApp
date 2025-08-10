@@ -5,11 +5,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 class InterestTracker:
-    """
-    Tracks user interests over time and identifies patterns.
-    Works alongside PreferenceExtractor and MemoryManager to build a dynamic interest profile.
-    """
-    
     def __init__(self, memory_manager=None):
         self.memory_manager = memory_manager
         self.interest_decay_days = 30  # How long before interests start fading
@@ -57,7 +52,7 @@ class InterestTracker:
         return updated_interests
     
     def get_top_interests(self, user_id: str, limit: int = 5) -> List[Dict]:
-        """Get user's top interests based on stored interest scores."""
+        # Get user's top interests based on stored interest scores.
         if not self.memory_manager or not hasattr(self.memory_manager, 'get_interests'):
             logger.warning("MemoryManager not available or missing get_interests method")
             return []
@@ -85,7 +80,7 @@ class InterestTracker:
             return []
     
     def _extract_topics_from_text(self, text: str) -> Dict[str, int]:
-        """Extract topics and count mentions from conversation text."""
+        # Extract topics and count mentions from conversation text.
         # Simple topic extraction - you could enhance this with spaCy later
         topic_keywords = {
             'gaming': ['game', 'gaming', 'play', 'minecraft', 'zelda', 'steam', 'xbox', 'playstation'],
@@ -141,7 +136,7 @@ class InterestTracker:
     def _calculate_interest_score(self, user_id: str, topic: str, 
                                 current_mentions: int, timestamp: datetime, 
                                 conversation_text: str = "") -> float:
-        """Calculate interest score based on frequency, recency, and history."""
+        # Calculate interest score based on frequency, recency, and history.
         # Get existing interest score from MemoryManager
         existing_score = 0.0
         if self.memory_manager and hasattr(self.memory_manager, 'get_interests'):
@@ -190,7 +185,7 @@ class InterestTracker:
         return final_score
 
     def suggest_conversation_topics(self, user_id: str) -> List[str]:
-        """Suggest conversation topics based on user's interests."""
+        # Suggest conversation topics based on user's interests.
         top_interests = self.get_top_interests(user_id, limit=3)
         
         suggestions = []
