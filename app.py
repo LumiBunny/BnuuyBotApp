@@ -1,13 +1,10 @@
 from flask import Flask, render_template, jsonify, request, redirect, url_for
-from stt_module import SpeechToText
-from tts_module import TTSEngine
-from bunnyChat import BunnyChat
-from chatHistory import ChatHistory
+from audio import SpeechToText, TTSEngine
+from chat import BunnyChat, ChatHistory
 import time
 import os
 import logging
 from flask import request
-import os
 
 # Configure basic logging
 logging.basicConfig(level=logging.INFO)
@@ -36,13 +33,13 @@ def handle_final_result(text):
         transcription_history.append({"text": text, "time": timestamp})
         current_text = text
         
-        bunny.add_user_message(text)
-        response = bunny.get_response()
+        # Use the new get_response method signature with message parameter
+        response = bunny.get_response(text, user_id="lumi")
         
         handle_completion(response)
         
+        # Add to TTS queue (assistant message is already added in get_response)
         tts.add_to_queue(response)
-        bunny.add_assistant_message(response)
 
 def handle_completion(text):
     global llm_responses

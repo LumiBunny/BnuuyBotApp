@@ -21,7 +21,6 @@ class IntegratedMoodSystem:
             'min_confidence_threshold': 0.3,  # Only use moods above this confidence
             'context_decay_hours': 2.0,       # How long mood context lasts
             'max_observations_per_user': 5,   # Max mood observations to keep
-            'enable_inner_thoughts': True,    # Enable inner thoughts generation
             'enable_trend_analysis': True,    # Enable mood trend analysis
         }
         
@@ -72,9 +71,6 @@ class IntegratedMoodSystem:
     def get_mood_aware_messages(self, user_id: str, base_messages: List[Dict]) -> List[Dict]:
         # Enhance message list with mood context for LLM
         # This is the main integration point with BunnyChat
-        if not self.config['enable_inner_thoughts']:
-            return base_messages
-        
         context = self._get_user_context(user_id)
         return context.create_mood_aware_messages(base_messages)
     
@@ -179,7 +175,7 @@ class BunnyChatMoodIntegration:
                        f"(confidence: {mood_info['confidence']:.2f})")
         
         # Return mood-aware messages
-        return self.mood_system.get_mood_aware_messages(user_id, base_messages)
+        return self.mood_system.get_mood_aware_messages(user_id, base_messages + [{"role": "user", "content": message}])
     
     def get_mood_command_response(self, user_id: str) -> str:
         # Generate response for /mood command
@@ -218,68 +214,12 @@ class BunnyChatMoodIntegration:
 # Example integration with BunnyChat
 """
 # In bunnyChat.py, add to __init__:
-from integrated_mood_system import IntegratedMoodSystem, BunnyChatMoodIntegration
+# TODO: Implement integrated mood system when ready
+# self.mood_integration = BunnyChatMoodIntegration(IntegratedMoodSystem())
 
-self.mood_system = IntegratedMoodSystem(use_gpu=True)
-self.mood_integration = BunnyChatMoodIntegration(self.mood_system)
-
-# In get_response method, replace message building with:
+# In get_response method:
 messages = self.mood_integration.enhance_get_response(user_id, message, messages)
-
-# Add new command in run_chat_loop:
-elif user_input.lower() == '/mood':
-    print(self.mood_integration.get_mood_command_response(user_id))
-    continue
 """
-
-# Future: Speculative Decoding Implementation Outline
-class SpeculativeMoodDecoding:
-    # Future implementation for speculative decoding with mood context
-    # Uses a smaller "draft" model for inner thoughts and main model for responses
-    def __init__(self, main_model_client, draft_model_client=None):
-        self.main_model = main_model_client
-        self.draft_model = draft_model_client  # Smaller, faster model for inner thoughts
-        
-        # This would integrate with LM Studio's speculative decoding when available
-        self.speculative_enabled = draft_model_client is not None
-    
-    async def generate_with_inner_thoughts(self, messages: List[Dict], mood_context: str) -> Dict[str, str]:
-        # Future method for generating responses with speculative inner thoughts
-        if not self.speculative_enabled:
-            # Fallback to regular generation
-            return await self._generate_regular(messages)
-        
-        # Step 1: Generate inner thoughts with draft model (fast)
-        inner_thoughts_prompt = f"Given this mood context: {mood_context}, what should I consider in my response?"
-        inner_thoughts = await self._generate_draft_thoughts(inner_thoughts_prompt)
-        
-        # Step 2: Use inner thoughts to guide main model response
-        enhanced_messages = messages + [
-            {"role": "thinking", "content": inner_thoughts}
-        ]
-        
-        main_response = await self._generate_main_response(enhanced_messages)
-        
-        return {
-            "inner_thoughts": inner_thoughts,
-            "response": main_response,
-            "method": "speculative"
-        }
-    
-    async def _generate_draft_thoughts(self, prompt: str) -> str:
-        # Generate quick inner thoughts with draft model
-        # Implementation would depend on LM Studio's API
-        pass
-    
-    async def _generate_main_response(self, messages: List[Dict]) -> str:
-        # Generate main response with full model
-        # Implementation would depend on LM Studio's API
-        pass
-    
-    async def _generate_regular(self, messages: List[Dict]) -> Dict[str, str]:
-        # Fallback regular generation
-        # Implementation would depend on LM Studio's API
-        pass
 
 if __name__ == "__main__":
     # Test the integrated system

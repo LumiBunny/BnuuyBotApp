@@ -215,39 +215,17 @@ class DynamicMoodContext:
         else:
             return "stable"
     
-    def generate_inner_thoughts(self) -> Optional[str]:
-        # Generate 'inner thoughts' content for LLM context
+    def create_mood_aware_messages(self, base_messages: List[Dict]) -> List[Dict]:
+        # Add mood context to message list for LLM
         context = self.get_current_mood_context()
         
         if not context['has_mood_context']:
-            return None
-        
-        mood_summary = context['mood_summary']
-        trend = context['mood_trend']
-        guidance = context['response_guidance']
-        
-        # Generate inner thoughts based on mood context
-        thoughts = f"[Internal Observation] {mood_summary}. "
-        
-        if trend != "stable":
-            thoughts += f"Emotional trend appears to be {trend}. "
-        
-        thoughts += f"Response approach: {guidance['response_tone']}. "
-        thoughts += f"Empathy level: {guidance['empathy_level']}."
-        
-        return thoughts
-    
-    def create_mood_aware_messages(self, base_messages: List[Dict]) -> List[Dict]:
-        # Add mood context to message list for LLM
-        inner_thoughts = self.generate_inner_thoughts()
-        
-        if not inner_thoughts:
             return base_messages
         
-        # Insert inner thoughts as a special role
+        # Create mood context message (without inner thoughts)
         mood_message = {
             "role": "observation",  # Custom role for mood context
-            "content": inner_thoughts
+            "content": f"Mood Context: {context['mood_summary']}. Trend: {context['mood_trend']}."
         }
         
         # Insert before the last user message
@@ -278,7 +256,6 @@ class DynamicMoodContext:
             "dominant_mood": context['dominant_mood'],
             "mood_summary": context['mood_summary'],
             "mood_trend": context['mood_trend'],
-            "inner_thoughts": self.generate_inner_thoughts(),
             "observations": [obs.to_dict() for obs in self.observations]
         }
 
@@ -295,19 +272,16 @@ if __name__ == "__main__":
     # Add some mood observations
     mood_context.add_observation("joy", 0.8, 0.9, "User expressed excitement about project")
     print("Added: Joy observation")
-    print(f"Inner thoughts: {mood_context.generate_inner_thoughts()}")
     print()
     
     time.sleep(1)
     mood_context.add_observation("sadness", 0.6, 0.7, "User mentioned feeling overwhelmed")
     print("Added: Sadness observation")
-    print(f"Inner thoughts: {mood_context.generate_inner_thoughts()}")
     print()
     
     time.sleep(1)
     mood_context.add_observation("joy", 0.7, 0.8, "User solved the problem successfully")
     print("Added: Joy observation")
-    print(f"Inner thoughts: {mood_context.generate_inner_thoughts()}")
     print()
     
     # Test message integration

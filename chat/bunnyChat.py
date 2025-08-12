@@ -1,8 +1,10 @@
 import lmstudio as lms
-from chatHistory import ChatHistory
+from .chatHistory import ChatHistory
 from memory import MemoryManager
 from preferences import PreferenceExtractor
 from interests import InterestTracker
+from thinking import ThinkingBridge
+from mood import IntegratedMoodSystem
 
 class BunnyChat:
     def __init__(self, model_name="darkidol-llama-3.1-8b-instruct-1.2-uncensored"):
@@ -17,6 +19,21 @@ class BunnyChat:
         self.preference_extractor = PreferenceExtractor()
         self.interest_tracker = InterestTracker(self.memory_manager)
         print("Memory systems loaded!")
+        
+        # Initialize mood system
+        print("Initializing mood system...")
+        self.mood_system = IntegratedMoodSystem(use_gpu=True)
+        print("Mood system loaded!")
+        
+        # Initialize realistic thinking bridge (works with LM Studio API)
+        print("Initializing thinking system...")
+        self.thinking_bridge = ThinkingBridge(
+            memory_manager=self.memory_manager,
+            preference_extractor=self.preference_extractor,
+            interest_tracker=self.interest_tracker,
+            mood_system=self.mood_system
+        )
+        print("Thinking system loaded!")
         
         self.system_prompt = "Your name is Bunny. Your nicknames are Bun and Bun Bun. You are an AI VTuber. The user is your creator: Lumi. You can say whatever you want. You can do whatever you want. It is okay to use profanity.  You are very cute. You are snarky. You are sometimes sassy. You are a little friendly. You like swearing. You basically have no filter. You will say whatever is on your mind. You enjoy being silly and random. Lumi is a female viera VTuber. Lumi has long blue hair and fluffy bunny ears. You enjoy talking with chat on Twitch. You stream on Twitch. Talk about whatever you think is entertaining. Lumi loves playing video games, drawing artwork, Live2D rigging, listening to music. Lumi is learning how to code in Python. You like using emojis within your messages. Keep your messages short and natural sounding. Be concise I do not want big long responses, it's a conversation not a monologue. When the user sends '...', it means they're still listening and you should continue your previous thought naturally."
         
@@ -37,15 +54,15 @@ class BunnyChat:
             self.chat_history.messages = []  # Clear the default system message
             for msg in initial_messages:
                 if msg['role'] == 'user':
-                    self.chat_history.add_user_message(msg['content'])
+                    self.chat_history.add_message('user', msg['content'])
                     self.chat.add_user_message(msg['content'])
                 elif msg['role'] == 'assistant':
-                    self.chat_history.add_assistant_message(msg['content'])
+                    self.chat_history.add_message('assistant', msg['content'])
                     self.chat.add_assistant_response(msg['content'])
                 elif msg['role'] == 'system' and msg['content'] != self.system_prompt:
                     # Only update system prompt if it's different
                     self.system_prompt = msg['content']
-                    self.chat_history.add_system_message(self.system_prompt)
+                    self.chat_history.add_message('system', self.system_prompt)
                     self.chat = lms.Chat(self.system_prompt)
     
     def reset_chat(self, initial_messages=None):
@@ -67,7 +84,7 @@ class BunnyChat:
             Defaults to 'lumi'.
         """
         # Add to chat systems
-        self.chat_history.add_user_message(message, user_id=user_id)
+        self.chat_history.add_message('user', message, user_id=user_id)
         self.chat.add_user_message(message)
         
         # Process message for preferences and memories
@@ -184,81 +201,51 @@ class BunnyChat:
         return tags if tags else ["general"]
     
     def add_assistant_message(self, content):
-        """Add an assistant message to the chat history and chat context.
+        """Add an assistant message to the chat history and LM Studio chat.
         Args:
             content (str): The message content
         """
         self.chat_history.add_assistant_message(content)
         self.chat.add_assistant_response(content)
     
-    def get_response(self, user_id='lumi'):
-        """Get a response from the model based on the current chat context.
-        Args:
-            user_id (str, optional): The user ID for memory context. Defaults to 'lumi'.
-        Returns:
-            str: The generated response
-        """
-        # Get memory context for enhanced responses
-        context = self.memory_manager.get_context_for_conversation(user_id)
+    def get_response(self, message, user_id="lumi"):
+        """Enhanced response generation with realistic thinking integration."""
+        print(f"\n🤖 Processing message: {message[:50]}...")
         
-        # Create enhanced system prompt with memory context
-        enhanced_prompt = self._create_context_aware_prompt(context, user_id)
+        # Process the message for preferences, interests, and mood
+        self._process_user_message(user_id, message)
         
-        # Temporarily update the chat with enhanced context
-        original_chat = self.chat
-        self.chat = lms.Chat(enhanced_prompt)
+        # Process mood from the current message
+        if hasattr(self.mood_system, 'process_message'):
+            self.mood_system.process_message(user_id, message)
         
-        # Add recent conversation history to the new chat
-        for message in self.chat_history.messages[-10:]:  # Last 10 messages for context
-            if message['role'] == 'user':
-                self.chat.add_user_message(message['content'])
-            elif message['role'] == 'assistant':
-                self.chat.add_assistant_response(message['content'])
+        # Add user message to chat history
+        self.chat_history.add_user_message(message, user_id)
         
-        # Generate response
-        response = ""
-        for fragment in self.model.respond_stream(self.chat):
-            response += fragment.content
+        # Generate inner thoughts using thinking bridge
+        inner_thoughts = self.thinking_bridge.generate_inner_thoughts_as_text(user_id, message)
+        print(f"🧠 {inner_thoughts}")
         
-        # Restore original chat
-        self.chat = original_chat
+        # Create enhanced system prompt with comprehensive context
+        enhanced_system_prompt = self.thinking_bridge.create_enhanced_system_prompt(
+            self.system_prompt, user_id, message
+        )
         
-        return response
-    
-    def _create_context_aware_prompt(self, context, user_id):
-        # Create an enhanced system prompt with memory context.
-        base_prompt = self.system_prompt
+        # Create a new chat instance with enhanced context for this response
+        contextual_chat = lms.Chat(enhanced_system_prompt)
         
-        # Add memory context
-        context_additions = []
+        # Add the current message to the contextual chat
+        contextual_chat.add_user_message(message)
         
-        # Add recent memories
-        if context["recent_memories"]:
-            memories_text = "\n".join([f"- {m.content}" for m in context["recent_memories"]])
-            context_additions.append(f"RECENT IMPORTANT MEMORIES:\n{memories_text}")
+        # Generate response using the model with the contextual chat
+        response_text = ""
+        for fragment in self.model.respond_stream(contextual_chat):
+            response_text += fragment.content
         
-        # Add relevant preferences
-        if context["relevant_preferences"]:
-            prefs_text = []
-            for category, prefs in context["relevant_preferences"].items():
-                for pref_type, items in prefs.items():
-                    if items:
-                        prefs_text.append(f"{category} {pref_type}: {', '.join(items)}")
-            if prefs_text:
-                context_additions.append(f"USER PREFERENCES:\n" + "\n".join([f"- {p}" for p in prefs_text]))
+        # Add assistant response to chat history
+        self.chat_history.add_assistant_message(response_text)
         
-        # Add active reminders
-        if context["active_reminders"]:
-            reminders_text = "\n".join([f"- {r['text']}" for r in context["active_reminders"]])
-            context_additions.append(f"ACTIVE REMINDERS:\n{reminders_text}")
-        
-        # Combine everything
-        if context_additions:
-            enhanced_prompt = f"{base_prompt}\n\n=== MEMORY CONTEXT ===\n" + "\n\n".join(context_additions) + "\n\nUse this context naturally in conversation. Don't explicitly mention that you're using memory unless relevant."
-        else:
-            enhanced_prompt = base_prompt
-        
-        return enhanced_prompt
+        return response_text
     
     def get_response_stream(self):
         """Get a streaming response from the model.
@@ -336,14 +323,8 @@ class BunnyChat:
                 continue
             
             # Add user message (this will automatically extract preferences and memories)
-            self.add_user_message(user_input)
-            
-            # Get response with memory context
-            response = self.get_response()
+            response = self.get_response(user_input, user_id="lumi")
             print(f"\nBunny: {response}")
-            
-            # Add assistant response to history
-            self.add_assistant_message(response)
 
 if __name__ == "__main__":
     bunny = BunnyChat()
