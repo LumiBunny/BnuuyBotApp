@@ -36,7 +36,7 @@ As this is an app in early development, I have not used or tested it on any othe
 [_**📝 See my full PC configuration, including drivers and software, on the Wiki for more details.**_](https://github.com/LumiBunny/BnuuyBotApp/wiki/2.-Getting-Started#my-working-setup)
 
 ## Latest Updates 📢
-**Version 0.4.4:** Overhauled the browser UI with a new and improved version to make it more visually pleasing, add control buttons and make it more user friendly, as well as some bug fixes.
+**Version 0.5.1:** Made some major changes to the code and structure following some recent updates to LM Studio. These changes primarily use a more streamlined completions method for chatting, as well as a new and improved `ChatHistory` class, more reliable `PreferenceExtractor`, updated `MemoryManager`, and more.
 
 **[📝Click here to read the full patch notes.](https://github.com/LumiBunny/BnuuyBotApp/wiki/1.-Patch-Notes)**
 
