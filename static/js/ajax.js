@@ -66,6 +66,58 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Intercept TTS form submission
+    const ttsForm = document.getElementById('tts-form');
+    if (ttsForm) {
+        ttsForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const action = this.getAttribute('action');
+            
+            fetch(action, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('TTS toggle response:', data);
+                if (data.success) {
+                    // Update the button
+                    const button = this.querySelector('button');
+                    if (button) {
+                        button.title = data.tts_enabled ? 'Turn TTS off' : 'Turn TTS on';
+                        button.className = `icon-button ${data.tts_enabled ? 'btn-tts-on' : 'btn-tts-off'}`;
+                        
+                        // Update the icon
+                        const icon = button.querySelector('i');
+                        if (icon) {
+                            icon.className = `fa-solid ${data.tts_enabled ? 'fa-volume-high' : 'fa-volume-xmark'}`;
+                        }
+                    }
+                    
+                    // Update TTS status indicator
+                    const statusDiv = document.getElementById('status');
+                    if (statusDiv) {
+                        const ttsStatusDiv = statusDiv.children[2]; // Third child should be TTS status
+                        if (ttsStatusDiv && ttsStatusDiv.textContent.includes('Speaking (TTS)')) {
+                            const ttsIndicator = ttsStatusDiv.querySelector('.status-indicator');
+                            if (ttsIndicator) {
+                                ttsIndicator.className = `status-indicator ${data.tts_enabled ? 'status-active' : 'status-inactive'}`;
+                                
+                                // Update the text next to the indicator
+                                const ttsStatusText = ttsIndicator.nextElementSibling;
+                                if (ttsStatusText) {
+                                    ttsStatusText.textContent = data.tts_enabled ? 'Active' : 'Inactive';
+                                }
+                            }
+                        }
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        });
+    }
+
     // Handle clear chat form submission (UI only)
     const clearForm = document.getElementById('clear-chat-form');
     if (clearForm) {

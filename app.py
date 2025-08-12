@@ -17,29 +17,86 @@ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Disable caching
 # Initialize core components
 bunny = BunnyChat()
 tts = TTSEngine(voice="en-US-AnaNeural", speed=1.15)
-stt = SpeechToText(model_size="small", device="cuda", compute_type="float16")
+# Modified STT settings for better microphone detection
+stt = SpeechToText(
+    model_size="small", 
+    device="cuda", 
+    compute_type="float16",
+    vad_aggressiveness=1,  # Less aggressive voice detection (was 2)
+    silence_threshold=0.8,  # Lower silence threshold (was 1.0)
+    streaming_interval=0.5  # Longer intervals for better detection
+)
 
 # Global state variables
 transcription_history = []
 llm_responses = []
 current_text = "Waiting for speech..."
 is_transcribing = False
+tts_enabled = True  # TTS is enabled by default
+
+# NEW: Unified message buffering system
+message_buffer = []  # Buffer for all messages during TTS playback
+is_tts_playing = False  # Track TTS state globally
 
 # Event handlers
 def handle_final_result(text):
-    global transcription_history, current_text
+    global transcription_history, current_text, message_buffer, is_tts_playing
     if text:
         timestamp = time.strftime("%H:%M:%S")
+        
+        # ALWAYS add to UI history for individual display
         transcription_history.append({"text": text, "time": timestamp})
         current_text = text
         
-        # Use the new get_response method signature with message parameter
-        response = bunny.get_response(text, user_id="lumi")
-        
-        handle_completion(response)
-        
-        # Add to TTS queue (assistant message is already added in get_response)
+        # NEW: Check if TTS is playing and buffer message if needed
+        if is_tts_playing:
+            print(f"TTS is playing, buffering message: {text}")
+            message_buffer.append(text)
+            # Note: Message is displayed in UI but NOT sent to BunnyChat yet
+        else:
+            # Process immediately if TTS is not playing
+            process_message(text)
+
+def process_message(text):
+    """Process a single message or combined buffered messages"""
+    print(f"Processing message for BunnyChat: {text}")
+    
+    # Use the new get_response method signature with message parameter
+    response = bunny.get_response(text, user_id="lumi")
+    
+    handle_completion(response)
+    
+    # Add to TTS queue only if TTS is enabled
+    if tts_enabled:
         tts.add_to_queue(response)
+
+def process_buffered_messages():
+    """Process all buffered messages when TTS finishes"""
+    global message_buffer, is_tts_playing
+    
+    if message_buffer:
+        combined_text = " ".join(message_buffer)
+        print(f"Processing combined buffered messages for BunnyChat: {combined_text}")
+        
+        # Process the combined message (this generates the bot response)
+        process_message(combined_text)
+        
+        # Clear buffer
+        message_buffer = []
+    
+    is_tts_playing = False
+
+def on_tts_started():
+    """Called when TTS starts playing"""
+    global is_tts_playing, message_buffer
+    is_tts_playing = True
+    message_buffer = []  # Clear any old buffer
+    print("DEBUG: TTS playback started, message buffering enabled (UI still shows individual messages)")
+
+def on_tts_finished():
+    """Called when TTS finishes playing"""
+    print("DEBUG: TTS playback finished, processing buffered messages")
+    process_buffered_messages()
 
 def handle_completion(text):
     global llm_responses
@@ -50,27 +107,23 @@ def handle_completion(text):
 
 stt.on_final_result = handle_final_result
 
+# NEW: Connect TTS callbacks to our unified system
+tts.on_playback_started = on_tts_started
+tts.on_playback_finished = on_tts_finished
+
+# Also connect STT callbacks for consistency
+stt.on_tts_started = on_tts_started
+stt.on_tts_finished = on_tts_finished
+
 tts.start()
-
-def shutdown_server():
-    # Helper function to shut down the Flask server
-    func = request.environ.get('werkzeug.server.shutdown')
-    if func is None:
-        os._exit(0)
-    func()
-
-@app.route('/shutdown', methods=['POST'])
-def shutdown():
-    # Shut down the Flask server
-    shutdown_server()
-    return jsonify({"success": True, "message": "Server is shutting down..."})
 
 # Routes
 @app.route('/')
 def index():
     return render_template('index.html', 
                           is_active=is_transcribing, 
-                          current_text=current_text)
+                          current_text=current_text,
+                          tts_enabled=tts_enabled)
 
 @app.route('/start_listening', methods=['POST'])
 def start_listening():
@@ -201,7 +254,7 @@ def send_text():
     text = data.get('text', '')
     
     if text:
-        # Process the text as if it came from STT
+        # NEW: Use the same unified handler as STT
         handle_final_result(text)
         return jsonify({"success": True})
     else:
@@ -265,6 +318,30 @@ def reset_chat():
             "message": f"Error resetting chat: {str(e)}"
         })
 
+@app.route('/toggle_tts', methods=['POST'])
+def toggle_tts():
+    global tts_enabled
+    
+    try:
+        tts_enabled = not tts_enabled
+        status = "enabled" if tts_enabled else "disabled"
+        message = f"TTS {status}"
+        print(f"\n[INFO] TTS {status}")
+        
+        return jsonify({
+            "success": True,
+            "message": message,
+            "tts_enabled": tts_enabled
+        })
+    except Exception as e:
+        message = f"Error toggling TTS: {str(e)}"
+        print(f"\n[ERROR] {message}")
+        return jsonify({
+            "success": False,
+            "message": message,
+            "tts_enabled": tts_enabled
+        })
+
 def reset_application_state():
     global is_transcribing, current_text
     
@@ -277,6 +354,19 @@ def reset_application_state():
     current_text = "Waiting for speech..."
     
     print("\n[INFO] Application state reset to defaults")
+
+@app.route('/shutdown', methods=['POST'])
+def shutdown():
+    # Shut down the Flask server
+    shutdown_server()
+    return jsonify({"success": True, "message": "Server is shutting down..."})
+
+def shutdown_server():
+    # Helper function to shut down the Flask server
+    func = request.environ.get('werkzeug.server.shutdown')
+    if func is None:
+        os._exit(0)
+    func()
 
 if __name__ == '__main__':
     print("\n" + "="*50)

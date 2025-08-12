@@ -38,6 +38,43 @@ h1 {
     font-size: 1.1rem;
 }
 
+/* Settings and Controls headers */
+.settings-header h3 {
+    color: #007790;
+    margin: 10px 0 15px 0;
+    text-align: center;
+    font-size: 1.7rem;
+    font-weight: bold;
+}
+
+.controls-header h3 {
+    color: #007790;
+    margin: 10px 0 15px 0;
+    text-align: center;
+    font-size: 1.3rem;
+    font-weight: bold;
+}
+
+.controls-subheader h4,
+.stt-tts-subheader h4 {
+    color: #007790;
+    margin: 5px 0 10px 0;
+    text-align: center;
+    font-size: 1.3rem;
+    font-weight: bold;
+    font-style: normal;
+}
+
+/* Chat Controls header styling */
+.sidebar h3 {
+    color: #007790;
+    margin: 10px 0 15px 0;
+    text-align: center;
+    font-size: 1.3rem;
+    font-weight: bold;
+}
+
+/* Sidebar section */
 .sidebar-section {
     margin-bottom: 20px;
     display: flex;
@@ -157,7 +194,7 @@ h1 {
 }
 
 .btn-reset {
-    background-color: #e74c3c;
+    background-color: #0d71d5ed;
 }
 
 .conversation-container {
@@ -245,6 +282,14 @@ button:disabled {
 }
 
 .btn-mic-on {
+    background-color: #5ab941;
+}
+
+.btn-tts-off {
+    background-color: #e84756;
+}
+
+.btn-tts-on {
     background-color: #5ab941;
 }
 
@@ -593,7 +638,7 @@ label[for="user_id"] {
 
 /* Reset Button Styling */
 .btn-reset {
-    background-color: #ff6b6b;
+    background-color: #416dff;
     color: white;
     border: none;
     border-radius: 50%;
@@ -608,13 +653,13 @@ label[for="user_id"] {
 }
 
 .btn-reset:hover {
-    background-color: #ff5252;
+    background-color: #7192ff;
     transform: scale(1.05);
 }
 
 .btn-reset:active {
     transform: scale(0.95);
-    background-color: #e74c3c;
+    background-color: #1c3eae;
 }
 
 /* Make sure the icon is centered */

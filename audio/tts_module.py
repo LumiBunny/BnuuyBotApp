@@ -14,7 +14,7 @@ import time
 import random
 
 class TTSEngine:
-    def __init__(self, voice="en-US-AnaNeural", speed=1.15, api_url="http://localhost:5050/v1/audio/speech"):
+    def __init__(self, voice="en-US-AnaNeural", speed=1.18, api_url="http://localhost:5050/v1/audio/speech"):
         self.voice = voice
         self.speed = speed
         self.audio_queue = queue.Queue()

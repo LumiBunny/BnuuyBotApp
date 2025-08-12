@@ -12,11 +12,24 @@
     <h1>BunnyBot Chat</h1>
     <div class="container">
         <div class="sidebar">
+            <!-- Settings Section -->
+            <div class="settings-header">
+                <h3>Settings ⚙️</h3>
+            </div>
+            
             <div id="status" style="text-align: center;">
+                <div class="controls-subheader">
+                    <h4>STT & TTS 🔊</h4>
+                </div>
                 <div>
                     Listening (mic): 
                     <span class="status-indicator {% if is_active %}status-active{% else %}status-inactive{% endif %}"></span>
                     {% if is_active %}Active{% else %}Inactive{% endif %}
+                </div>
+                <div>
+                    Speaking (TTS): 
+                    <span class="status-indicator {% if tts_enabled %}status-active{% else %}status-inactive{% endif %}"></span>
+                    {% if tts_enabled %}Active{% else %}Inactive{% endif %}
                 </div>
                 <!-- Commented out timer status since we removed self-prompting
                 <div>
@@ -27,6 +40,8 @@
                 -->
             </div>
             
+            <div class="controls-header">
+            </div>
             <div class="sidebar-section">
                 <form id="mic-form" action="{% if is_active %}/stop_listening{% else %}/start_listening{% endif %}" method="post">
                     <button type="submit" 
@@ -36,19 +51,23 @@
                     </button>
                 </form>
                 
-                <form id="end-chat-form" action="/shutdown" method="post">
-                    <button type="submit" class="icon-button btn-end" title="Shut down the application">
-                        <i class="fa-solid fa-power-off"></i>
+                <form id="tts-form" action="/toggle_tts" method="post">
+                    <button type="submit" 
+                            class="icon-button {% if tts_enabled %}btn-tts-on{% else %}btn-tts-off{% endif %}"
+                            title="{% if tts_enabled %}Turn TTS off{% else %}Turn TTS on{% endif %}">
+                        <i class="fa-solid {% if tts_enabled %}fa-volume-high{% else %}fa-volume-xmark{% endif %}"></i>
                     </button>
                 </form>
-            </div>
-            
-            <h3>Chat History</h3>
-            <div class="history-controls">
+                
+                <!-- Temporarily hidden load button
                 <button type="button" class="icon-button btn-load" title="Load chat history">
                     <i class="fa-solid fa-folder-open"></i>
                 </button>
-                
+                -->
+            </div>
+            
+            <h3>Chat Controls 📋</h3>
+            <div class="history-controls">
                 <form id="clear-chat-form" action="/clear" method="post">
                     <button type="submit" class="icon-button btn-clear" title="Clear chat window">
                         <i class="fa-solid fa-eraser"></i>
@@ -58,6 +77,12 @@
                 <form id="reset-chat-form" action="/reset_chat" method="post">
                     <button type="submit" class="icon-button btn-reset" title="Reset chat history and context">
                         <i class="fa-solid fa-rotate-left"></i>
+                    </button>
+                </form>
+                
+                <form id="end-chat-form" action="/shutdown" method="post">
+                    <button type="submit" class="icon-button btn-end" title="Shut down the application">
+                        <i class="fa-solid fa-power-off"></i>
                     </button>
                 </form>
             </div>

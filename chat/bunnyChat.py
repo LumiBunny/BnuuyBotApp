@@ -352,6 +352,13 @@ class BunnyChat:
         """Enhanced response generation with realistic thinking integration."""
         print(f"\n🤖 Processing message: {message[:50]}...")
         
+        # Check if this is a continuation request
+        is_continue_request = self._is_continue_request(message)
+        
+        if is_continue_request:
+            print("🔄 Detected continue request - prompting for continuation")
+            return self._handle_continue_request(message, user_id)
+        
         # Process the message for preferences, interests, and mood
         inner_thought, context_data = self._process_user_message_optimized(user_id, message)
         
@@ -524,6 +531,44 @@ Use this internal reflection to inform your response, but don't mention it direc
             # Add user message (this will automatically extract preferences and memories)
             response = self.get_response(user_input, user_id="lumi")
             print(f"\nBunny: {response}")
+
+    def _is_continue_request(self, message):
+        """Check if the message is requesting continuation"""
+        continue_patterns = [
+            "...", "continue", "keep going", "go on", "and?", 
+            "tell me more", "what else", "more", "keep talking"
+        ]
+        message_lower = message.lower().strip()
+        return any(pattern in message_lower for pattern in continue_patterns)
+    
+    def _handle_continue_request(self, message, user_id):
+        """Handle continuation requests by prompting the model to continue"""
+        # Add user message to chat history
+        self.chat_history.add_user_message(message, user_id)
+        
+        # Create a continuation prompt
+        continuation_prompt = f"""The user wants you to continue your previous thought. 
+        They said: "{message}"
+        
+        Please continue naturally from where you left off, expanding on your previous response."""
+        
+        try:
+            # Use the existing chat context to continue
+            self.chat.add_user_message(continuation_prompt)
+            
+            response_text = ""
+            for fragment in self.model.respond_stream(self.chat):
+                response_text += fragment.content
+                
+        except Exception as e:
+            print(f"Error in continue request: {e}")
+            # Fallback response
+            response_text = "I'd be happy to continue! What would you like me to elaborate on?"
+        
+        # Add assistant response to chat history
+        self.chat_history.add_assistant_message(response_text)
+        
+        return response_text
 
 if __name__ == "__main__":
     bunny = BunnyChat()
