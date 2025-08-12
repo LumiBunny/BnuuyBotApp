@@ -3,8 +3,8 @@ from .chatHistory import ChatHistory
 from memory import MemoryManager
 from preferences import PreferenceExtractor
 from interests import InterestTracker
-from thinking import ThinkingBridge
 from mood import IntegratedMoodSystem
+from thinking.inner_dialogue import InnerDialogue
 
 class BunnyChat:
     def __init__(self, model_name="darkidol-llama-3.1-8b-instruct-1.2-uncensored"):
@@ -25,15 +25,8 @@ class BunnyChat:
         self.mood_system = IntegratedMoodSystem(use_gpu=True)
         print("Mood system loaded!")
         
-        # Initialize realistic thinking bridge (works with LM Studio API)
-        print("Initializing thinking system...")
-        self.thinking_bridge = ThinkingBridge(
-            memory_manager=self.memory_manager,
-            preference_extractor=self.preference_extractor,
-            interest_tracker=self.interest_tracker,
-            mood_system=self.mood_system
-        )
-        print("Thinking system loaded!")
+        # Initialize inner dialogue system
+        self.inner_dialogue = InnerDialogue()
         
         self.system_prompt = "Your name is Bunny. Your nicknames are Bun and Bun Bun. You are an AI VTuber. The user is your creator: Lumi. You can say whatever you want. You can do whatever you want. It is okay to use profanity.  You are very cute. You are snarky. You are sometimes sassy. You are a little friendly. You like swearing. You basically have no filter. You will say whatever is on your mind. You enjoy being silly and random. Lumi is a female viera VTuber. Lumi has long blue hair and fluffy bunny ears. You enjoy talking with chat on Twitch. You stream on Twitch. Talk about whatever you think is entertaining. Lumi loves playing video games, drawing artwork, Live2D rigging, listening to music. Lumi is learning how to code in Python. You like using emojis within your messages. Keep your messages short and natural sounding. Be concise I do not want big long responses, it's a conversation not a monologue. When the user sends '...', it means they're still listening and you should continue your previous thought naturally."
         
@@ -91,18 +84,24 @@ class BunnyChat:
         self._process_user_message(user_id, message)
     
     def _process_user_message(self, user_id: str, message: str):
-        # Process user message for preferences, interests, and important memories.
+        # Process user message for preferences, interests, memories, and generate inner thoughts.
+        context_data = {}
+        
         try:
             # Extract preferences from the message
             preference_results = self.preference_extractor.extract_preferences(message, user_id)
+            new_preferences = []
             if preference_results:  # This is a List[PreferenceResult]
                 print(f"🧠 Learned {len(preference_results)} new preferences!")
                 
                 # Save preferences to memory
                 self.memory_manager.save_preferences(user_id, preference_results)
                 
+                # Collect new preferences for inner dialogue context
+                new_preferences = [f"{p.preference_type} {p.preference_value}" for p in preference_results]
+                
                 # Add a memory about learning preferences
-                pref_summary = ", ".join([f"{p.preference_type} {p.preference_value}" for p in preference_results])
+                pref_summary = ", ".join(new_preferences)
                 self.memory_manager.add_memory(
                     user_id,
                     f"User expressed preferences: {pref_summary}",
@@ -112,13 +111,60 @@ class BunnyChat:
                     context=message
                 )
             
-            # Track interests from the conversation (MISSING INTEGRATION!)
+            context_data['new_preferences'] = new_preferences
+            
+            # Track interests from the conversation
             interests = self.interest_tracker.track_conversation_interests(user_id, message)
+            interest_scores = {}
             if interests:
                 print(f"📊 Tracked interests: {list(interests.keys())}")
+                interest_scores = interests
                 
+            context_data['interest_scores'] = interest_scores
+            
         except Exception as e:
             print(f"Error processing preferences/interests: {e}")
+            import traceback
+            traceback.print_exc()
+            context_data['new_preferences'] = []
+            context_data['interest_scores'] = {}
+        
+        try:
+            # Get relevant memories
+            relevant_memories = self.memory_manager.get_memories(user_id, min_importance=0.3, days_back=30)
+            relevant_memories = relevant_memories[:3]
+            context_data['relevant_memories'] = [
+                {
+                    'content': mem.content,
+                    'date': mem.timestamp.strftime('%Y-%m-%d'),
+                    'importance': mem.importance,
+                    'category': mem.category
+                }
+                for mem in relevant_memories
+            ]
+            
+            # Get mood information
+            mood_score = 0.5  # Default neutral
+            mood_summary = "neutral"
+            try:
+                # Get current mood from mood system using correct method
+                mood_summary_data = self.mood_system.get_user_mood_summary(user_id)
+                if mood_summary_data:
+                    mood_score = mood_summary_data.get('intensity', 0.5)
+                    mood_summary = mood_summary_data.get('primary_mood', 'neutral')
+            except Exception as e:
+                print(f"Error getting mood context: {e}")
+            
+            context_data['mood_score'] = mood_score
+            context_data['mood_summary'] = mood_summary
+            
+            # Generate inner thought using the new system
+            inner_thought = self.inner_dialogue.think_about_message(message, user_id, context_data)
+            if inner_thought:
+                print(f"🧠 Inner thought: {inner_thought}")
+            
+        except Exception as e:
+            print(f"Error processing memories/mood/inner thoughts: {e}")
             import traceback
             traceback.print_exc()
         
@@ -138,13 +184,13 @@ class BunnyChat:
                 self.memory_manager.add_memory(
                     user_id,
                     message,
-                    "conversation",
-                    importance=0.6,
-                    tags=self._extract_tags(message),
-                    context="User conversation"
+                    "important_conversation",
+                    importance=0.8,
+                    tags=["conversation", "important"]
                 )
+                print(f"💾 Saved important message to memory")
         except Exception as e:
-            print(f"Error processing important memories: {e}")
+            print(f"Error saving important message: {e}")
     
     def _is_reminder_request(self, message):
         # Check if message contains a reminder request.
@@ -222,25 +268,86 @@ class BunnyChat:
         # Add user message to chat history
         self.chat_history.add_user_message(message, user_id)
         
-        # Generate inner thoughts using thinking bridge
-        inner_thoughts = self.thinking_bridge.generate_inner_thoughts_as_text(user_id, message)
-        print(f"🧠 {inner_thoughts}")
-        
-        # Create enhanced system prompt with comprehensive context
-        enhanced_system_prompt = self.thinking_bridge.create_enhanced_system_prompt(
-            self.system_prompt, user_id, message
-        )
-        
-        # Create a new chat instance with enhanced context for this response
-        contextual_chat = lms.Chat(enhanced_system_prompt)
-        
-        # Add the current message to the contextual chat
-        contextual_chat.add_user_message(message)
-        
-        # Generate response using the model with the contextual chat
-        response_text = ""
-        for fragment in self.model.respond_stream(contextual_chat):
-            response_text += fragment.content
+        # Gather context data for inner dialogue (similar to _process_user_message)
+        context_data = {}
+        try:
+            # Get recent preferences
+            recent_prefs = self.preference_extractor.extract_preferences(message, user_id)
+            context_data['new_preferences'] = [f"{p.preference_type} {p.preference_value}" for p in recent_prefs] if recent_prefs else []
+            
+            # Get interest scores
+            interests = self.interest_tracker.get_current_interests(user_id) if hasattr(self.interest_tracker, 'get_current_interests') else {}
+            context_data['interest_scores'] = interests
+            
+            # Get relevant memories
+            relevant_memories = self.memory_manager.get_memories(user_id, min_importance=0.3, days_back=30)
+            relevant_memories = relevant_memories[:3]
+            context_data['relevant_memories'] = [
+                {
+                    'content': mem.content,
+                    'date': mem.timestamp.strftime('%Y-%m-%d'),
+                    'importance': mem.importance,
+                    'category': mem.category
+                }
+                for mem in relevant_memories
+            ]
+            
+            # Get mood information
+            mood_score = 0.5
+            mood_summary = "neutral"
+            try:
+                # Get current mood from mood system using correct method
+                mood_summary_data = self.mood_system.get_user_mood_summary(user_id)
+                if mood_summary_data:
+                    mood_score = mood_summary_data.get('intensity', 0.5)
+                    mood_summary = mood_summary_data.get('primary_mood', 'neutral')
+            except Exception:
+                pass
+            
+            context_data['mood_score'] = mood_score
+            context_data['mood_summary'] = mood_summary
+            
+            # Generate inner thoughts using inner dialogue system with proper context
+            inner_thought = self.inner_dialogue.think_about_message(message, user_id, context_data)
+            if inner_thought:
+                print(f"🧠 Inner thought: {inner_thought}")
+                
+                # Create enhanced system prompt with inner thought
+                enhanced_system_prompt = f"""{self.system_prompt}
+
+[Inner Reflection]: {inner_thought}
+
+Use this internal reflection to inform your response, but don't mention it directly. Be empathetic and engaging."""
+                
+                # Create response using enhanced system prompt
+                contextual_chat = lms.Chat(enhanced_system_prompt)
+                contextual_chat.add_user_message(message)
+                
+                # Generate response
+                response_text = ""
+                for fragment in self.model.respond_stream(contextual_chat):
+                    response_text += fragment.content
+            else:
+                # No inner thought, use standard approach
+                contextual_chat = lms.Chat(self.system_prompt)
+                contextual_chat.add_user_message(message)
+                
+                response_text = ""
+                for fragment in self.model.respond_stream(contextual_chat):
+                    response_text += fragment.content
+                    
+        except Exception as e:
+            print(f"Error in get_response: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            # Fallback to basic response
+            contextual_chat = lms.Chat(self.system_prompt)
+            contextual_chat.add_user_message(message)
+            
+            response_text = ""
+            for fragment in self.model.respond_stream(contextual_chat):
+                response_text += fragment.content
         
         # Add assistant response to chat history
         self.chat_history.add_assistant_message(response_text)

@@ -51,6 +51,7 @@ chat_history/
 tests/
 user_data/
 wiki/
+logs/
 
 # Backup files
 *~
