@@ -4,12 +4,15 @@ from typing import Dict, List, Optional, Any
 logger = logging.getLogger(__name__)
 
 class InnerThoughtsGenerator:
-    # Generates inner thoughts and observations for AI responses.
-    # This class creates internal observations based on context and enhances
-    # message lists with thinking content for more contextually aware responses.
+    """
+    Generates inner thoughts and observations for AI responses.
+    
+    This class creates internal observations based on context and enhances
+    message lists with thinking content for more contextually aware responses.
+    """
     
     def __init__(self, config: Optional[Dict[str, Any]] = None):
-        # Initialize the inner thoughts generator with configuration.
+        """Initialize the inner thoughts generator with configuration."""
         self.config = config or {
             'enable_inner_thoughts': True,
             'observation_role': 'observation',  # Role name for inner thoughts in messages

@@ -5,12 +5,8 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 class ThinkingBridge:
-    """
-    Thinking bridge that works with LM Studio's actual API capabilities.
-    
-    Instead of custom roles, this enhances the system prompt with context
-    and creates "inner thoughts" as part of the conversation flow.
-    """
+    # Thinking bridge that works with LM Studio's actual API capabilities.
+    # Instead of custom roles, this enhances the system prompt with context and creates "inner thoughts" as part of the conversation flow.
     
     def __init__(self, 
                  memory_manager=None,
@@ -127,11 +123,8 @@ class ThinkingBridge:
             return ""
     
     def create_enhanced_system_prompt(self, base_system_prompt: str, user_id: str, current_message: str = "") -> str:
-        """
-        Create an enhanced system prompt with comprehensive context.
-        
-        This is the realistic approach that works with LM Studio's API.
-        """
+        # Create an enhanced system prompt with comprehensive context.
+        # This is the realistic approach that works with LM Studio's API.
         context = self.gather_comprehensive_context(user_id, current_message)
         
         # Build context additions
@@ -162,12 +155,8 @@ class ThinkingBridge:
         return enhanced_prompt
     
     def generate_inner_thoughts_as_text(self, user_id: str, current_message: str = "") -> str:
-        """
-        Generate inner thoughts as a text string that can be used in conversation.
-        
-        This creates a natural-sounding internal monologue that could be
-        included in the conversation or used for logging/debugging.
-        """
+        # Generate inner thoughts as a text string that can be used in conversation.
+        # This creates a natural-sounding internal monologue that could be included in the conversation or used for logging/debugging.
         context = self.gather_comprehensive_context(user_id, current_message)
         
         thoughts = []
