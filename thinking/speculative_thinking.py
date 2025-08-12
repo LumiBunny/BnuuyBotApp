@@ -1,3 +1,14 @@
+<<<<<<< HEAD
+=======
+"""
+Speculative Thinking Module
+
+Handles speculative decoding for generating responses with inner thoughts.
+Uses a smaller "draft" model for quick inner thoughts and main model for responses.
+Extracted from the mood module to create a dedicated thinking system.
+"""
+
+>>>>>>> 0.5.7
 import logging
 from typing import Dict, List, Optional, Any
 import asyncio
@@ -259,12 +270,20 @@ class SpeculativeThinking:
         return "\n".join(prompt_parts)
     
     def update_config(self, new_config: Dict[str, Any]) -> None:
+<<<<<<< HEAD
         # Update the configuration for speculative thinking.
+=======
+        """Update the configuration for speculative thinking."""
+>>>>>>> 0.5.7
         self.config.update(new_config)
         logger.info(f"SpeculativeThinking config updated: {new_config}")
     
     def set_draft_model(self, draft_model_client) -> None:
+<<<<<<< HEAD
         # Set or update the draft model client.
+=======
+        """Set or update the draft model client."""
+>>>>>>> 0.5.7
         self.draft_model = draft_model_client
         self.speculative_enabled = draft_model_client is not None
         logger.info(f"Draft model updated - Speculative enabled: {self.speculative_enabled}")

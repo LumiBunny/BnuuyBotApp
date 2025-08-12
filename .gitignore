@@ -26,6 +26,8 @@ ENV/
 .env
 .venv/
 .pytest_cache/
+.venv/
+.pytest_cache/
 
 # IDE-specific files
 .idea/
@@ -35,9 +37,6 @@ ENV/
 .DS_Store
 
 # Application-specific
-chat_history/
-saved_chats/
-user_data/
 chat_logs/*.json
 data/memories/*.json
 user_profiles/*.json
@@ -45,11 +44,13 @@ user_profile_manager/user_profile_testing.py
 *.log
 temp/
 models/
-wiki/
-old/
-patch_notes/
-tests/
 test.py
+old/
+saved_chats/
+chat_history/
+tests/
+user_data/
+wiki/
 
 # Backup files
 *~
