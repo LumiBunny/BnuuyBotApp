@@ -2,7 +2,7 @@
 
 [Documentation](https://github.com/LumiBunny/BnuuyBotApp/wiki) • [Patch Notes](https://github.com/LumiBunny/BnuuyBotApp/wiki/1.-Patch-Notes) • [Get Started](https://github.com/LumiBunny/BnuuyBotApp/wiki/2.-Getting-Started)
 
-![Project Status](https://img.shields.io/badge/status-in%20progress-red) ![Version](https://img.shields.io/badge/version-0.4.4-blue) ![Python 3.10](https://img.shields.io/badge/python-3.10-yellow.svg) ![Flask](https://img.shields.io/badge/flask-000000.svg?style=flat&logo=flask&logoColor=white)
+![Project Status](https://img.shields.io/badge/status-in%20progress-red) ![Version](https://img.shields.io/badge/version-0.5.7-blue) ![Python 3.10](https://img.shields.io/badge/python-3.10-yellow.svg) ![Flask](https://img.shields.io/badge/flask-000000.svg?style=flat&logo=flask&logoColor=white)
 
 BunnyBot is an AI assistant chatbot application that enables speech-to-speech and text-based conversation with a locally hosted LLM. This project serves as a personal study on Python, LLMs, and the practical application of NLP.
 
