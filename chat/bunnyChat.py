@@ -93,8 +93,6 @@ class BunnyChat:
             preference_results = self.preference_extractor.extract_preferences(message, user_id)
             new_preferences = []
             if preference_results:  # This is a List[PreferenceResult]
-                print(f"🧠 Learned {len(preference_results)} new preferences!")
-                
                 # Save preferences to memory
                 self.memory_manager.save_preferences(user_id, preference_results)
                 
@@ -111,17 +109,19 @@ class BunnyChat:
                     tags=["preferences", "learning"],
                     context=message
                 )
+                
+                # Only show message if preferences were actually found
+                if any(p.confidence > 0.5 for p in preference_results):
+                    print("📝 Learned new preferences!")
             
             context_data['new_preferences'] = new_preferences
             
             # Track interests from the conversation
             interests = self.interest_tracker.track_conversation_interests(user_id, message)
-            interest_scores = {}
-            if interests:
-                print(f"📊 Tracked interests: {list(interests.keys())}")
-                interest_scores = interests
+            if interests and any(score > 0.3 for score in interests.values()):
+                print("📊 Updated interests!")
                 
-            context_data['interest_scores'] = interest_scores
+            context_data['interest_scores'] = interests or {}
             
         except Exception as e:
             print(f"Error processing preferences/interests: {e}")

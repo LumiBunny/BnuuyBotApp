@@ -57,6 +57,7 @@ class MemoryManager:
     def __init__(self, base_data_dir: str = "user_data"):
         self.base_data_dir = Path(base_data_dir)
         self.base_data_dir.mkdir(exist_ok=True)
+        self.recent_summaries = {}  # Cache for recent summaries by user_id
         logger.info(f"MemoryManager initialized with base directory: {self.base_data_dir}")
     
     def _get_user_dir(self, user_id: str) -> Path:
@@ -221,27 +222,8 @@ class MemoryManager:
     
     # === CONVERSATION MANAGEMENT ===
     
-    def save_conversation_summary(self, user_id: str, summary: str, 
-                                  main_topics: List[str], date: Optional[datetime] = None) -> None:
-        # Save a conversation summary.
-        self._ensure_user_structure(user_id)
-        
-        if date is None:
-            date = datetime.now()
-        
-        summary_data = {
-            "date": date.isoformat(),
-            "summary": summary,
-            "main_topics": main_topics,
-            "created_at": datetime.now().isoformat()
-        }
-        
-        summary_file = self._get_user_dir(user_id) / "conversations" / "summaries" / f"{date.strftime('%Y-%m-%d')}_summary.json"
-        self._save_json(summary_file, summary_data)
-        logger.info(f"Saved conversation summary for {user_id} on {date.strftime('%Y-%m-%d')}")
-    
-    def get_recent_summaries(self, user_id: str, days_back: int = 7) -> List[Dict]:
-        # Get recent conversation summaries.
+    def _load_recent_summaries(self, user_id: str, days_back: int = 7) -> List[Dict]:
+        """Load and cache recent conversation summaries for a user."""
         self._ensure_user_structure(user_id)
         
         summaries_dir = self._get_user_dir(user_id) / "conversations" / "summaries"
@@ -249,15 +231,73 @@ class MemoryManager:
         
         cutoff_date = datetime.now() - timedelta(days=days_back)
         
-        for summary_file in summaries_dir.glob("*_summary.json"):
-            summary_data = self._load_json(summary_file)
-            if summary_data:
-                summary_date = datetime.fromisoformat(summary_data["date"])
-                if summary_date >= cutoff_date:
-                    summaries.append(summary_data)
+        for summary_file in sorted(summaries_dir.glob("summary_*.json"), key=lambda f: f.stat().st_mtime, reverse=True):
+            try:
+                summary_data = self._load_json(summary_file)
+                if summary_data:
+                    # Handle both old and new summary formats
+                    if "start_time" in summary_data:  # New format
+                        start_time = datetime.fromisoformat(summary_data["start_time"])
+                        if start_time >= cutoff_date:
+                            summaries.append(summary_data)
+                    else:  # Old format for backward compatibility
+                        summary_date = datetime.fromisoformat(summary_data["date"])
+                        if summary_date >= cutoff_date:
+                            summaries.append(summary_data)
+            except Exception as e:
+                logger.error(f"Error loading summary file {summary_file}: {e}")
         
-        summaries.sort(key=lambda s: s["date"], reverse=True)
+        # Sort by start_time (new format) or date (old format)
+        summaries.sort(
+            key=lambda s: datetime.fromisoformat(s.get("start_time", s.get("date"))), 
+            reverse=True
+        )
+        
+        # Cache the loaded summaries
+        self.recent_summaries[user_id] = summaries
         return summaries
+    
+    def get_recent_summaries(self, user_id: str, days_back: int = 7, force_refresh: bool = False) -> List[Dict]:
+        """Get recent conversation summaries, using cache if available."""
+        if user_id not in self.recent_summaries or force_refresh:
+            return self._load_recent_summaries(user_id, days_back)
+        return self.recent_summaries[user_id]
+    
+    def get_latest_summary(self, user_id: str) -> Optional[Dict]:
+        """Get the most recent summary for a user."""
+        summaries = self.get_recent_summaries(user_id, days_back=30)  # Look back up to 30 days
+        return summaries[0] if summaries else None
+    
+    def save_conversation_summary(self, user_id: str, summary_data: Dict) -> None:
+        """Save a conversation summary in the new format.
+        
+        Args:
+            user_id: The ID of the user
+            summary_data: Dictionary containing summary information with keys:
+                - session_id: Unique ID for the session
+                - start_time: ISO format timestamp of session start
+                - end_time: ISO format timestamp of session end
+                - total_messages: Total number of messages in the session
+                - periodic_summaries: List of periodic summary entries
+                - final_summary: Final summary of the entire session
+        """
+        self._ensure_user_structure(user_id)
+        
+        # Add metadata if not present
+        if "created_at" not in summary_data:
+            summary_data["created_at"] = datetime.now().isoformat()
+        
+        # Generate a filename with session ID and timestamp
+        session_id = summary_data.get("session_id", "session")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        summary_file = self._get_user_dir(user_id) / "conversations" / "summaries" / f"summary_{session_id}_{timestamp}.json"
+        
+        self._save_json(summary_file, summary_data)
+        logger.info(f"Saved conversation summary for {user_id} (session: {session_id})")
+        
+        # Update the cache
+        if user_id in self.recent_summaries:
+            self.recent_summaries[user_id].insert(0, summary_data)
     
     # === AGENT DATA MANAGEMENT ===
     

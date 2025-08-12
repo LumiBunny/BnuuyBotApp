@@ -88,8 +88,6 @@ class SpeechToText:
         return self.vad.is_speech(pcm, self.sample_rate)
     
     def filter_transcripts_by_confidence(self, text, audio_duration, confidence_threshold=0.6, max_chunk_duration=10.0):
-        print("\n==== ENTERING filter_transcripts_by_confidence ====\n")
-        
         if audio_duration < 0.75:
             required_confidence = max(0.8, confidence_threshold)
         else:
@@ -101,7 +99,6 @@ class SpeechToText:
         max_samples = int(max_chunk_duration * samples_per_second)
         
         if len(audio_data) > max_samples:
-            print(f"Audio too long ({len(audio_data)/samples_per_second:.2f}s), processing only last {max_chunk_duration}s")
             audio_data = audio_data[-max_samples:]
         
         segments = self.model.transcribe(
@@ -114,19 +111,14 @@ class SpeechToText:
         
         segments_list = list(segments)
         if not segments_list:
-            print("No segments found in transcription")
             return ""
         
         avg_confidence = sum(segment.avg_logprob for segment in segments_list) / len(segments_list)
-        normalized_confidence = min(1.0, max(0.0, (avg_confidence + 4) / 4))  # Normalize from log prob
-        
-        print(f"\nDEBUG: Transcript confidence: {normalized_confidence:.2f} - '{text}'\n")
+        normalized_confidence = min(1.0, max(0.0, (avg_confidence + 4) / 4))
         
         if normalized_confidence >= required_confidence:
             return text
-        else:
-            print(f"Rejected transcript (confidence: {normalized_confidence:.2f} < {required_confidence:.2f})")
-            return ""
+        return ""
     
     def speech_buffer_to_audio(self):
         if not self.speech_buffer:
@@ -138,7 +130,7 @@ class SpeechToText:
             print(f"Final: {text}")
 
     def process_audio_queue(self):
-        print("Listening for speech... (Press Ctrl+C to stop)")
+        print("🎙️ Listening... (Press Ctrl+C to stop)")
         
         try:
             while self.is_running:
@@ -150,7 +142,7 @@ class SpeechToText:
                     if has_speech:
                         if not self.is_speaking:
                             self.is_speaking = True
-                            print("\nSpeech detected...")
+                            print("\n✏️ Transcribing audio...")
                             self.last_update_time = time.time()
                             if hasattr(self, 'on_voice_activity_started') and self.on_voice_activity_started:
                                 self.on_voice_activity_started()
@@ -173,12 +165,10 @@ class SpeechToText:
                             
                             interim_text = "".join(segment.text for segment in segments).strip()
                             
-                            # Fixed condition: Check if text is valid
+                            # Only process if text is valid
                             if interim_text and "ლლლ" not in interim_text:
                                 if self.on_interim_result:
                                     self.on_interim_result(interim_text)
-                                else:
-                                    self.default_display(interim_text)
                                 
                             self.last_update_time = current_time
                             
@@ -188,6 +178,7 @@ class SpeechToText:
                             
                             if self.silence_frames >= 50:
                                 self.is_speaking = False
+                                print("🎙️ Listening...")
                                 
                                 if len(self.speech_buffer) > 0:
                                     audio_data = np.concatenate(self.speech_buffer)
@@ -200,7 +191,7 @@ class SpeechToText:
                                     
                                     final_text = "".join(segment.text for segment in segments).strip()
                                     
-                                    # Fixed condition: Check if text is valid
+                                    # Only process if text is valid
                                     if final_text and "ლლლ" not in final_text:
                                         # NEW CODE: Buffer transcription if TTS is playing
                                         if hasattr(self, 'is_tts_playing') and self.is_tts_playing:
