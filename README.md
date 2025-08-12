@@ -1,6 +1,6 @@
 # BunnyBot 🐰💕✨
 
-[Documentation](https://github.com/LumiBunny/BnuuyBotApp/wiki) • [Patch Notes](https://github.com/LumiBunny/BnuuyBotApp/wiki/1.-Patch-Notes) • [Get Started](https://github.com/LumiBunny/BnuuyBotApp/wiki/2.-Getting-Started)
+[Documentation](https://github.com/LumiBunny/BnuuyBotApp/wiki) • [Patch Notes](https://github.com/LumiBunny/BnuuyBotApp/wiki/1.1-Patch-Notes) • [Get Started](https://github.com/LumiBunny/BnuuyBotApp/wiki/1.0-Getting-Started)
 
 ![Project Status](https://img.shields.io/badge/status-in%20progress-red) ![Version](https://img.shields.io/badge/version-0.5.7-blue) ![Python 3.10](https://img.shields.io/badge/python-3.10-yellow.svg) ![Flask](https://img.shields.io/badge/flask-000000.svg?style=flat&logo=flask&logoColor=white)
 
@@ -22,7 +22,7 @@ Follow these steps to get BunnyBot up and running.
 1. **Install Prerequisites:**
    * Install [Python 3.10+](https://apps.microsoft.com/detail/9pjpw5ldxlz5?hl=en-US&gl=US), [LM Studio](https://lmstudio.ai), and [Docker](https://docs.docker.com/desktop/setup/install/windows-install).
    * Set up a local server in LM Studio and load an LLM of your choice.
-   * Run the [**Docker quick start setup**](https://github.com/travisvn/openai-edge-tts?tab=readme-ov-file#%EF%B8%8F-quick-start]) for TTS functionality.
+   * Run the [**Docker quick start setup**](https://github.com/travisvn/openai-edge-tts?tab=readme-ov-file#%EF%B8%8F-quick-start) for TTS functionality.
 2. **Clone the Repository:**
    * `git clone https://github.com/LumiBunny/BnuuyBotApp.git`
 3. **Install Python Dependencies:**
@@ -33,11 +33,11 @@ Follow these steps to get BunnyBot up and running.
 ### My Working Setup:
 As this is an app in early development, I have not used or tested it on any other hardware. Here is my current PC configuration:
 
-[_**📝 See my full PC configuration, including drivers and software, on the Wiki for more details.**_](https://github.com/LumiBunny/BnuuyBotApp/wiki/2.-Getting-Started#my-working-setup)
+[_**📝 See my full PC configuration, including drivers and software, on the Wiki for more details.**_](https://github.com/LumiBunny/BnuuyBotApp/wiki/1.0-Getting-Started))
 
 ## Latest Updates 📢
-**Version 0.5.1:** Made some major changes to the code and structure following some recent updates to LM Studio. These changes primarily use a more streamlined completions method for chatting, as well as a new and improved `ChatHistory` class, more reliable `PreferenceExtractor`, updated `MemoryManager`, and more.
+**Version 0.5.7:** Made some major changes to the code and structure following some recent updates to LM Studio. These changes primarily use a more streamlined completions method for chatting, as well as a new and improved `ChatHistory` class, more reliable `PreferenceExtractor`, updated `MemoryManager`, and more.
 
-**[📝Click here to read the full patch notes.](https://github.com/LumiBunny/BnuuyBotApp/wiki/1.-Patch-Notes)**
+**[📝Click here to read the full patch notes.](https://github.com/LumiBunny/BnuuyBotApp/wiki/1.1-Patch-Notes)**
 
 ## [🏡 Visit our Wiki for full documentation!](https://github.com/LumiBunny/BnuuyBotApp/wiki)
