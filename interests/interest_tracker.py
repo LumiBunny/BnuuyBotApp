@@ -24,10 +24,18 @@ class InterestTracker:
         if timestamp is None:
             timestamp = datetime.now()
             
+        # Beautiful emoji-formatted output instead of boring logs
+        print(f"📚 Analyzing interests in: {conversation_text[:100]}{'...' if len(conversation_text) > 100 else ''}")
         logger.info(f"Analyzing interests in: {conversation_text[:100]}...")
         
         # Extract topics mentioned (simple keyword approach)
         interests = self._extract_topics_from_text(conversation_text)
+        
+        if interests:
+            interest_list = [f"{topic}({score:.2f})" for topic, score in interests.items()]
+            print(f"📚 Found interests: {', '.join(interest_list)}")
+        else:
+            print(f"📚 No significant interests detected")
         logger.info(f"Extracted interests: {interests}")
         
         # Update interest scores based on frequency and recency

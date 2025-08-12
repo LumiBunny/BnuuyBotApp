@@ -8,16 +8,12 @@ import os
 logger = logging.getLogger(__name__)
 
 class InnerDialogue:
-    """
-    BunnyBot's inner voice - a separate AI model for introspection and reflection.
-    
-    Uses a smaller, faster model dedicated to generating authentic inner thoughts
-    based on conversation context, memories, preferences, mood, and interests.
-    """
+    # BunnyBot's inner voice - a separate AI model for introspection and reflection.
+    # Uses a smaller, faster model dedicated to generating authentic inner thoughts based on conversation context, memories, preferences, mood, and interests.
     
     def __init__(self, 
                  lm_studio_endpoint: str = "http://localhost:1234/v1/chat/completions",
-                 model_name: str = "llama-3.2-1b-instruct",
+                 model_name: str = "llama-3.2-1b-instruct-uncensored",
                  log_directory: str = "logs/inner_dialogue"):
         """
         Initialize the inner dialogue system.
@@ -34,16 +30,14 @@ class InnerDialogue:
         # Create log directory if it doesn't exist
         os.makedirs(log_directory, exist_ok=True)
         
-        # System prompt for inner dialogue
-        self.system_prompt = """You are BunnyBot's inner voice. You think in short, insightful observations about:
-- What the user might really be feeling or needing
-- Connections to past conversations and memories
-- Subtle mood or interest changes you notice
-- Empathetic insights about the current situation
+        # System prompt for inner dialogue - balanced brevity and insight
+        self.system_prompt = """You are BunnyBot's inner voice. Generate thoughtful, concise observations (1-2 sentences) about:
+        - What the user might really be feeling or needing
+        - Key connections to past conversations and memories  
+        - Important mood or interest changes you notice
+        - Quick insights about the current situation
 
-Keep thoughts brief (1-2 sentences). Be curious, caring, and perceptive.
-You are NOT speaking directly to the user - these are internal reflections only.
-Think like a thoughtful friend who notices the little things."""
+        Be perceptive. Keep it brief but meaningful. Focus on the most important insight."""
         
         logger.info(f"InnerDialogue initialized with model: {model_name}")
     
@@ -114,22 +108,31 @@ Think like a thoughtful friend who notices the little things."""
         return "general_reflection", self._think_general_reflection(user_id, user_message, context_data)
     
     def _think_new_preferences(self, user_id: str, new_preferences: List[str], user_message: str) -> Optional[str]:
-        """Generate thoughts about newly discovered preferences."""
+        # Generate thoughts about newly discovered preferences.
         preferences_text = ", ".join(new_preferences)
         
         prompt = f"""You've just learned new preferences from {user_id}: {preferences_text}
 
-Their message was: "{user_message}"
+        Their message was: "{user_message}"
 
-What does this tell you about them? Any insights about their personality or needs?"""
+        What does this tell you about them? Any insights about their personality or needs?"""
         
         return self._generate_thought(prompt)
     
     def _think_relevant_memories(self, user_id: str, memories: List[Dict], user_message: str) -> Optional[str]:
-        """Generate thoughts about relevant memories found."""
+        # Generate thoughts about relevant memories found.
+        if not memories:
+            return None
+            
+        # Filter memories for topic relevance
+        relevant_memories = self._filter_topically_relevant_memories(memories, user_message)
+        
+        if not relevant_memories:
+            return None  # No topically relevant memories found
+            
         # Format memory information
         memory_info = []
-        for memory in memories[:2]:  # Limit to 2 most relevant
+        for memory in relevant_memories[:2]:  # Limit to 2 most relevant
             date = memory.get('date', 'unknown date')
             content = memory.get('content', '')[:100]  # Truncate long memories
             memory_info.append(f"'{content}' (from {date})")
@@ -138,24 +141,24 @@ What does this tell you about them? Any insights about their personality or need
         
         prompt = f"""Hey, {user_id} mentioned something related before: {memories_text}
 
-Their current message: "{user_message}"
+        Their current message: "{user_message}"
 
-What connections do you notice? How might this past context inform the current conversation?"""
+        What connections do you notice? How might this past context inform the current conversation?"""
         
         return self._generate_thought(prompt)
     
     def _think_strong_signals(self, user_id: str, signal_type: str, score: float, content: str, user_message: str) -> Optional[str]:
-        """Generate thoughts about strong mood or interest signals."""
+        # Generate thoughts about strong mood or interest signals.
         prompt = f"""I'm noticing {user_id} has a really strong {signal_type} about '{content}' (intensity: {score:.2f}).
 
-Their message: "{user_message}"
+        Their message: "{user_message}"
 
-What might this intensity mean? What should I be aware of?"""
+        What might this intensity mean? What should I be aware of?"""
         
         return self._generate_thought(prompt)
     
     def _think_general_reflection(self, user_id: str, user_message: str, context_data: Dict[str, Any]) -> Optional[str]:
-        """Generate general thoughtful observations."""
+        # Generate general thoughtful observations.
         # Build basic context
         context_summary = []
         if context_data.get('mood_summary'):
@@ -171,9 +174,9 @@ What might this intensity mean? What should I be aware of?"""
         
         prompt = f"""{user_id} said: "{user_message}"
 
-Current context: {context_text}
+        Current context: {context_text}
 
-What do you think about this? Any insights or observations?"""
+        What do you think about this? Any insights or observations?"""
         
         return self._generate_thought(prompt)
     
@@ -194,7 +197,7 @@ What do you think about this? Any insights or observations?"""
                     {"role": "system", "content": self.system_prompt},
                     {"role": "user", "content": prompt}
                 ],
-                "max_tokens": 150,  # Keep thoughts concise
+                "max_tokens": 200,  # Allow for 1-2 sentences
                 "temperature": 0.7,
                 "stream": False
             }
@@ -204,6 +207,11 @@ What do you think about this? Any insights or observations?"""
             
             result = response.json()
             thought = result['choices'][0]['message']['content'].strip()
+            
+            # Post-processing to ensure concise output
+            thought = thought.split('.')[0]  # Remove everything after the first period
+            thought = thought.split('?')[0]  # Remove everything after the first question mark
+            thought = thought.strip()  # Remove leading/trailing whitespace
             
             return thought
             
@@ -216,6 +224,74 @@ What do you think about this? Any insights or observations?"""
         except Exception as e:
             logger.error(f"Error generating thought: {e}")
             return None
+    
+    def _filter_topically_relevant_memories(self, memories: List[Dict], user_message: str) -> List[Dict]:
+        """Filter memories to only include those topically relevant to the current message."""
+        if not memories:
+            return []
+            
+        # Extract key topics from current message
+        message_lower = user_message.lower()
+        current_topics = set()
+        
+        # Technical/coding topics
+        tech_keywords = ['python', 'code', 'coding', 'programming', 'module', 'function', 'class', 'variable', 
+                        'script', 'debug', 'error', 'syntax', 'import', 'library', 'framework', 'api']
+        
+        # Food topics  
+        food_keywords = ['food', 'eat', 'eating', 'hungry', 'meal', 'cook', 'cooking', 'recipe', 'taste',
+                        'carrot', 'pizza', 'vegetable', 'fruit', 'dinner', 'lunch', 'breakfast']
+        
+        # General topics
+        entertainment_keywords = ['game', 'gaming', 'stream', 'streaming', 'twitch', 'video', 'music', 'movie']
+        
+        # Categorize current message
+        for keyword in tech_keywords:
+            if keyword in message_lower:
+                current_topics.add('tech')
+                break
+                
+        for keyword in food_keywords:
+            if keyword in message_lower:
+                current_topics.add('food')
+                break
+                
+        for keyword in entertainment_keywords:
+            if keyword in message_lower:
+                current_topics.add('entertainment')
+                break
+        
+        # If no specific topics detected, allow all memories (general conversation)
+        if not current_topics:
+            return memories
+        
+        # Filter memories based on topic relevance
+        relevant_memories = []
+        for memory in memories:
+            memory_content = memory.get('content', '').lower()
+            memory_topics = set()
+            
+            # Check what topics this memory contains
+            for keyword in tech_keywords:
+                if keyword in memory_content:
+                    memory_topics.add('tech')
+                    break
+                    
+            for keyword in food_keywords:
+                if keyword in memory_content:
+                    memory_topics.add('food')
+                    break
+                    
+            for keyword in entertainment_keywords:
+                if keyword in memory_content:
+                    memory_topics.add('entertainment')
+                    break
+            
+            # Include memory if it shares topics with current message
+            if current_topics.intersection(memory_topics):
+                relevant_memories.append(memory)
+        
+        return relevant_memories
     
     def _log_thought(self, trigger_type: str, user_input: str, user_id: str, 
                     context_data: Dict[str, Any], thought_output: str):
@@ -363,6 +439,6 @@ if __name__ == "__main__":
     )
     
     if thought:
-        print(f"Inner thought: {thought}")
+        print(f"💭 Inner thought: {thought}")
     else:
         print("No thought generated")

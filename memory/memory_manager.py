@@ -147,6 +147,8 @@ class MemoryManager:
             # Add if not already present (avoid duplicates)
             if value not in current_prefs[category][pref_type]:
                 current_prefs[category][pref_type].append(value)
+                # Beautiful emoji formatting for preference saving
+                print(f"💞 Preference saved: {pref_type} {value} (category: {category})")
                 logger.info(f"Added preference: {user_id} {pref_type} {value} (category: {category})")
         
         self._save_json(preferences_file, current_prefs)
@@ -184,6 +186,12 @@ class MemoryManager:
         memories.append(memory.to_dict())
         
         self._save_json(memories_file, memories)
+        
+        # Beautiful emoji formatting for memory operations
+        if importance >= 0.7:
+            print(f"🧠 Important memory saved: {content[:50]}{'...' if len(content) > 50 else ''}")
+        else:
+            print(f"🧠 Memory saved: {content[:50]}{'...' if len(content) > 50 else ''}")
         logger.info(f"Added memory for {user_id}: {content[:50]}...")
     
     def get_memories(self, user_id: str, category: Optional[str] = None, 

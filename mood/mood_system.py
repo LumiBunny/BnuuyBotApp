@@ -171,8 +171,12 @@ class BunnyChatMoodIntegration:
         mood_info = self.mood_system.process_user_message(user_id, message)
         
         if mood_info:
+            # Beautiful emoji formatting for mood detection
+            mood_name = mood_info['detected_mood']
+            confidence = mood_info.get('confidence', 0)
+            print(f"🎭 Mood detected: {mood_name} (confidence: {confidence:.2f})")
             logger.info(f"Mood detected for {user_id}: {mood_info['detected_mood']} "
-                       f"(confidence: {mood_info['confidence']:.2f})")
+                       f"(confidence: {confidence:.2f})")
         
         # Return mood-aware messages
         return self.mood_system.get_mood_aware_messages(user_id, base_messages + [{"role": "user", "content": message}])

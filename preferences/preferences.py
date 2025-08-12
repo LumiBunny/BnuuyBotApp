@@ -210,6 +210,10 @@ class PreferenceExtractor:
             validated_results = self._validate_and_deduplicate(filtered_results)
             # Apply sentiment hierarchy
             hierarchy_results = self._apply_sentiment_hierarchy(validated_results)
+            if hierarchy_results:
+                print(f"💞 Found {len(hierarchy_results)} preferences: {', '.join([f'{p.preference_type}={p.preference_value}' for p in hierarchy_results])}")
+            else:
+                print(f"💞 No new preferences detected")
             logger.info(f"Extracted {len(hierarchy_results)} preferences (from {len(all_results)} candidates)")
             return hierarchy_results
         
@@ -235,6 +239,10 @@ class PreferenceExtractor:
         # Apply sentiment hierarchy
         hierarchy_results = self._apply_sentiment_hierarchy(validated_results)
         
+        if hierarchy_results:
+            print(f"💞 Found {len(hierarchy_results)} preferences: {', '.join([f'{p.preference_type}={p.preference_value}' for p in hierarchy_results])}")
+        else:
+            print(f"💞 No new preferences detected")
         logger.info(f"Extracted {len(hierarchy_results)} preferences (from {len(all_results)} candidates)")
         
         return hierarchy_results

@@ -5,6 +5,7 @@ from preferences import PreferenceExtractor
 from interests import InterestTracker
 from mood import IntegratedMoodSystem
 from thinking.inner_dialogue import InnerDialogue
+import concurrent.futures
 
 class BunnyChat:
     def __init__(self, model_name="darkidol-llama-3.1-8b-instruct-1.2-uncensored"):
@@ -84,7 +85,7 @@ class BunnyChat:
         self._process_user_message(user_id, message)
     
     def _process_user_message(self, user_id: str, message: str):
-        # Process user message for preferences, interests, memories, and generate inner thoughts.
+        """Process user message for preferences, interests, memories, and generate inner thoughts."""
         context_data = {}
         
         try:
@@ -161,7 +162,7 @@ class BunnyChat:
             # Generate inner thought using the new system
             inner_thought = self.inner_dialogue.think_about_message(message, user_id, context_data)
             if inner_thought:
-                print(f"🧠 Inner thought: {inner_thought}")
+                print(f"💭 Inner thought: {inner_thought}")
             
         except Exception as e:
             print(f"Error processing memories/mood/inner thoughts: {e}")
@@ -191,6 +192,99 @@ class BunnyChat:
                 print(f"💾 Saved important message to memory")
         except Exception as e:
             print(f"Error saving important message: {e}")
+    
+    def _process_user_message_optimized(self, user_id: str, message: str):
+        """Optimized version that processes context data in parallel"""
+        context_data = {
+            'preferences': {},
+            'interest_scores': {},
+            'relevant_memories': [],
+            'mood_score': 0.5,
+            'mood_summary': 'neutral'
+        }
+        
+        try:
+            # Run all context gathering operations in parallel
+            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+                # Submit all tasks
+                preference_future = executor.submit(self._extract_preferences, user_id, message)
+                interest_future = executor.submit(self._track_interests, user_id, message)
+                memory_future = executor.submit(self._get_relevant_memories, user_id)
+                mood_future = executor.submit(self._get_mood_data, user_id)
+                
+                # Collect results as they complete
+                try:
+                    context_data['preferences'] = preference_future.result(timeout=0.5)
+                except:
+                    pass
+                    
+                try:
+                    context_data['interest_scores'] = interest_future.result(timeout=0.5)
+                except:
+                    pass
+                    
+                try:
+                    context_data['relevant_memories'] = memory_future.result(timeout=0.8)
+                except:
+                    pass
+                    
+                try:
+                    mood_data = mood_future.result(timeout=0.3)
+                    context_data.update(mood_data)
+                except:
+                    pass
+            
+            # Generate inner thought (this is fast with the 1B model)
+            inner_thought = self.inner_dialogue.think_about_message(message, user_id, context_data)
+            return inner_thought, context_data
+            
+        except Exception as e:
+            print(f"Error in optimized processing: {e}")
+            return None, context_data
+    
+    def _extract_preferences(self, user_id: str, message: str) -> dict:
+        """Extract preferences with timeout protection"""
+        try:
+            results = self.preference_extractor.extract_preferences(message, user_id)
+            return results if results else {}
+        except:
+            return {}
+    
+    def _track_interests(self, user_id: str, message: str) -> dict:
+        """Track interests with timeout protection"""
+        try:
+            return self.interest_tracker.track_conversation_interests(user_id, message) or {}
+        except:
+            return {}
+    
+    def _get_relevant_memories(self, user_id: str) -> list:
+        """Get memories with caching and timeout protection"""
+        try:
+            memories = self.memory_manager.get_memories(user_id, min_importance=0.3, days_back=30)[:3]
+            return [
+                {
+                    'content': mem.content,
+                    'date': mem.timestamp.strftime('%Y-%m-%d'),
+                    'importance': mem.importance,
+                    'category': mem.category
+                }
+                for mem in memories
+            ]
+        except:
+            return []
+    
+    def _get_mood_data(self, user_id: str) -> dict:
+        """Get mood data with timeout protection"""
+        try:
+            mood_summary_data = self.mood_system.get_user_mood_summary(user_id)
+            if mood_summary_data:
+                return {
+                    'mood_score': mood_summary_data.get('intensity', 0.5),
+                    'mood_summary': mood_summary_data.get('primary_mood', 'neutral')
+                }
+        except:
+            pass
+        return {'mood_score': 0.5, 'mood_summary': 'neutral'}
     
     def _is_reminder_request(self, message):
         # Check if message contains a reminder request.
@@ -259,7 +353,7 @@ class BunnyChat:
         print(f"\n🤖 Processing message: {message[:50]}...")
         
         # Process the message for preferences, interests, and mood
-        self._process_user_message(user_id, message)
+        inner_thought, context_data = self._process_user_message_optimized(user_id, message)
         
         # Process mood from the current message
         if hasattr(self.mood_system, 'process_message'):
@@ -269,7 +363,6 @@ class BunnyChat:
         self.chat_history.add_user_message(message, user_id)
         
         # Gather context data for inner dialogue (similar to _process_user_message)
-        context_data = {}
         try:
             # Get recent preferences
             recent_prefs = self.preference_extractor.extract_preferences(message, user_id)
@@ -308,9 +401,8 @@ class BunnyChat:
             context_data['mood_summary'] = mood_summary
             
             # Generate inner thoughts using inner dialogue system with proper context
-            inner_thought = self.inner_dialogue.think_about_message(message, user_id, context_data)
             if inner_thought:
-                print(f"🧠 Inner thought: {inner_thought}")
+                print(f"💭 Inner thought: {inner_thought}")
                 
                 # Create enhanced system prompt with inner thought
                 enhanced_system_prompt = f"""{self.system_prompt}
