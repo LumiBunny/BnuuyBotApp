@@ -43,19 +43,51 @@ function updateScrollButtonPosition(button, container) {
     button.style.bottom = (window.innerHeight - containerRect.bottom + 20) + 'px';
 }
 
+// Function to scroll chat to bottom
+function scrollChatToBottom() {
+    const conversationDiv = document.getElementById('conversation');
+    if (conversationDiv) {
+        console.log('Scrolling to bottom...');
+        conversationDiv.scrollTop = conversationDiv.scrollHeight;
+        console.log('Scroll position set to:', conversationDiv.scrollTop, 'of', conversationDiv.scrollHeight);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOMContentLoaded event fired');
     const conversationDiv = document.getElementById('conversation');
     
-    conversationDiv.addEventListener('scroll', function() {
-        const scrollButton = document.getElementById('scroll-to-bottom');
-        if (!scrollButton) return;
+    // Create the scroll-to-bottom button
+    createScrollButton(conversationDiv);
+    
+    // Initial scroll to bottom
+    scrollChatToBottom();
+    
+    // Scroll again after a short delay to catch any dynamically loaded content
+    setTimeout(scrollChatToBottom, 300);
+    
+    // Scroll again when window is fully loaded
+    window.addEventListener('load', function() {
+        console.log('Window load event fired');
+        scrollChatToBottom();
         
-        if (isScrolledToBottom(conversationDiv)) {
-            scrollButton.style.display = 'none';
-        } else {
-            scrollButton.style.display = 'block';
-        }
+        // One more check after everything should be loaded
+        setTimeout(scrollChatToBottom, 500);
     });
+    
+    // Set up scroll event listener for the scroll-to-bottom button
+    if (conversationDiv) {
+        conversationDiv.addEventListener('scroll', function() {
+            const scrollButton = document.getElementById('scroll-to-bottom');
+            if (!scrollButton) return;
+            
+            if (isScrolledToBottom(conversationDiv)) {
+                scrollButton.style.display = 'none';
+            } else {
+                scrollButton.style.display = 'block';
+            }
+        });
+    }
 });
 
 // Auto-expanding textarea

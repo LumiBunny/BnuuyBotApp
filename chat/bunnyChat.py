@@ -70,6 +70,12 @@ class BunnyChat:
         Returns: bool: True if reset was successful
         """
         print("Resetting chat...")
+        
+        # End the current session to ensure remaining messages are summarized
+        if hasattr(self, 'chat_history'):
+            self.chat_history.clear()  # This will trigger end_session with "reset" reason
+        
+        # Now reinitialize the chat
         self._initialize_chat(initial_messages=initial_messages)
         print("Chat has been reset to initial state.")
         return True

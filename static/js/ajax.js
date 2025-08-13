@@ -309,9 +309,42 @@ document.addEventListener('DOMContentLoaded', function() {
                     conversationDiv.innerHTML = '';
                 }
                 
+                console.log('Original messages before sorting:', data.messages);
+                
+                const sortedMessages = [...data.messages].sort((a, b) => {
+                    // Parse timestamps safely, default to 0 if invalid
+                    const parseTime = (timestamp) => {
+                        try {
+                            // If timestamp is already a number, return it
+                            if (typeof timestamp === 'number') return timestamp;
+                            // If it's a string, try to parse it
+                            if (typeof timestamp === 'string') {
+                                // Handle ISO format with or without timezone
+                                return new Date(timestamp).getTime() || 0;
+                            }
+                            return 0;
+                        } catch (e) {
+                            console.error('Error parsing timestamp:', e);
+                            return 0;
+                        }
+                    };
+                    
+                    const timeA = parseTime(a.timestamp);
+                    const timeB = parseTime(b.timestamp);
+                    
+                    console.log(`Comparing: ${a.role} (${a.timestamp} = ${timeA}) vs ${b.role} (${b.timestamp} = ${timeB})`);
+                    
+                    return timeA - timeB;
+                });
+                
+                console.log('Messages after sorting:', sortedMessages);
+                
                 // Add each message to the conversation using existing CSS classes
                 if (data.messages && Array.isArray(data.messages)) {
-                    data.messages.forEach(msg => {
+                    // Create a document fragment for better performance
+                    const fragment = document.createDocumentFragment();
+                    
+                    sortedMessages.forEach(msg => {
                         if (msg.role === 'user' || msg.role === 'assistant') {
                             const messageDiv = document.createElement('div');
                             // Use existing CSS classes that are properly styled
@@ -335,31 +368,36 @@ document.addEventListener('DOMContentLoaded', function() {
                                 ${timestamp ? `<div class="time">${timestamp}</div>` : ''}
                             `;
                             
-                            if (conversationDiv) {
-                                conversationDiv.appendChild(messageDiv);
-                            }
+                            fragment.appendChild(messageDiv);
                         }
                     });
                     
-                    // Scroll to bottom of conversation
+                    // Append all messages at once for better performance
                     if (conversationDiv) {
+                        conversationDiv.appendChild(fragment);
+                        
+                        // Scroll to bottom of conversation
+                        conversationDiv.scrollTop = conversationDiv.scrollHeight;
+                        
+                        // Dispatch event that chat history is loaded
+                        const event = new Event('chatHistoryLoaded');
+                        document.dispatchEvent(event);
+                    }
+                    
+                    // Show success message
+                    const statusDiv = document.createElement('div');
+                    statusDiv.className = 'system-message';
+                    statusDiv.textContent = data.message || 'Chat history loaded successfully';
+                    if (conversationDiv) {
+                        conversationDiv.appendChild(statusDiv);
                         conversationDiv.scrollTop = conversationDiv.scrollHeight;
                     }
+                    
+                    // Restart polling after chat bubbles are loaded
+                    setTimeout(() => {
+                        startPolling();
+                    }, 1000); // Wait 1 second to ensure chat bubbles are stable
                 }
-                
-                // Show success message
-                const statusDiv = document.createElement('div');
-                statusDiv.className = 'system-message';
-                statusDiv.textContent = data.message || 'Chat history loaded successfully';
-                if (conversationDiv) {
-                    conversationDiv.appendChild(statusDiv);
-                    conversationDiv.scrollTop = conversationDiv.scrollHeight;
-                }
-                
-                // Restart polling after chat bubbles are loaded
-                setTimeout(() => {
-                    startPolling();
-                }, 1000); // Wait 1 second to ensure chat bubbles are stable
             } else {
                 // Show error message
                 const errorDiv = document.createElement('div');
@@ -386,31 +424,46 @@ document.addEventListener('DOMContentLoaded', function() {
     // Intercept end chat form submission
     const endChatForm = document.getElementById('end-chat-form');
     if (endChatForm) {
-        endChatForm.addEventListener('submit', function(e) {
+        endChatForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            if (confirm('Are you sure you want to shut down the application? This will end the chat session and close the server.')) {
-                fetch('/shutdown', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Show a message before the page becomes unresponsive
-                        alert('Shutting down the application. You may need to refresh your browser after the server has fully stopped.');
-                        // The server will close the connection, so we'll let the browser handle it
+            if (confirm('Are you sure you want to end the chat session? This will save the conversation and shut down the application.')) {
+                try {
+                    // First, end the chat session
+                    const endResponse = await fetch('/end_chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                    });
+                    
+                    const endData = await endResponse.json();
+                    
+                    if (endData.success) {
+                        console.log('Chat session ended successfully');
                     } else {
-                        alert('Failed to shut down: ' + (data.message || 'Unknown error'));
+                        console.warn('Failed to properly end chat session:', endData.message || 'Unknown error');
                     }
-                })
-                .catch(error => {
-                    console.error('Error shutting down:', error);
-                    // If we get an error, the server might have shut down anyway
+                    
+                    // Then shut down the server
+                    const shutdownResponse = await fetch('/shutdown', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                    });
+                    
+                    const shutdownData = await shutdownResponse.json();
+                    
+                    if (shutdownData.success) {
+                        alert('Shutting down the application. You may need to refresh your browser after the server has fully stopped.');
+                    } else {
+                        alert('Failed to shut down: ' + (shutdownData.message || 'Unknown error'));
+                    }
+                } catch (error) {
+                    console.error('Error during shutdown:', error);
                     alert('The server is shutting down. You may need to refresh your browser.');
-                });
+                }
             }
         });
     }
@@ -603,55 +656,109 @@ function updateConversation(data) {
     const conversationDiv = document.getElementById('conversation');
     if (!conversationDiv) return;
     
-    // Check if user was already at the bottom before updating
+    // Check if user was at bottom BEFORE adding new messages
     const wasAtBottom = isScrolledToBottom(conversationDiv);
     
-    // Clear "No conversation history yet" message if present
+    // Clear loading message if present
+    if (conversationDiv.innerHTML === '<div class="message loading">Loading chat history...</div>') {
+        conversationDiv.innerHTML = '';
+    }
+    
+    // Combine and sort all messages by timestamp
     if ((data.transcriptions && data.transcriptions.length > 0) || 
         (data.responses && data.responses.length > 0)) {
-        const noHistoryMsg = conversationDiv.querySelector('p:only-child');
-        if (noHistoryMsg && noHistoryMsg.textContent.includes('No conversation history yet')) {
-            conversationDiv.innerHTML = '';
-        }
-    }
-    
-    // Add user transcriptions
-    if (data.transcriptions) {
-        data.transcriptions.forEach(item => {
-            if (!isMessageDisplayed('user', item.text)) {
-                const userMessageDiv = document.createElement('div');
-                userMessageDiv.className = 'transcript-item';
-                userMessageDiv.innerHTML = `
-                    <div class="message-name">You</div>
-                    <div class="transcript-content">${item.text}</div>
-                    <div class="time">${item.time}</div>
-                `;
-                conversationDiv.appendChild(userMessageDiv);
-            }
-        });
-    }
-    
-        // Add AI responses
-        if (data.responses) {
-            data.responses.forEach(item => {
-                if (!isMessageDisplayed('bot', item.text)) {
-                    const botMessageDiv = document.createElement('div');
-                    botMessageDiv.className = 'bunny-item';
-                    botMessageDiv.innerHTML = `
-                        <div class="message-name">Bunny</div>
-                        <div class="response-content">${item.text}</div>
-                        <div class="time">${item.time}</div>
-                    `;
-                    conversationDiv.appendChild(botMessageDiv);
+        
+        // Create a combined array of all messages with their type and timestamp
+        const allMessages = [];
+        
+        // Add user messages (transcriptions)
+        if (data.transcriptions) {
+            data.transcriptions.forEach(item => {
+                if (!isMessageDisplayed('user', item.text)) {
+                    allMessages.push({
+                        type: 'user',
+                        text: item.text,
+                        timestamp: parseTimeString(item.time)
+                    });
                 }
             });
         }
         
-        // If user was at the bottom before, scroll back to bottom
-        if (wasAtBottom) {
-            conversationDiv.scrollTop = conversationDiv.scrollHeight;
+        // Add assistant messages (responses)
+        if (data.responses) {
+            data.responses.forEach(item => {
+                if (!isMessageDisplayed('assistant', item.text)) {
+                    allMessages.push({
+                        type: 'assistant',
+                        text: item.text,
+                        timestamp: parseTimeString(item.time)
+                    });
+                }
+            });
         }
+        
+        // Sort all messages by timestamp
+        allMessages.sort((a, b) => a.timestamp - b.timestamp);
+        
+        // Create a document fragment for better performance
+        const fragment = document.createDocumentFragment();
+        
+        // Add each message to the conversation
+        allMessages.forEach(msg => {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = msg.type === 'user' ? 'transcript-item' : 'bunny-item';
+            
+            const timeStr = formatTime(new Date(msg.timestamp));
+            
+            messageDiv.innerHTML = `
+                <div class="message-name">${msg.type === 'user' ? 'You' : 'Bunny'}</div>
+                <div class="${msg.type === 'user' ? 'transcript-content' : 'response-content'}">
+                    ${msg.text}
+                </div>
+                <div class="time">${timeStr}</div>
+            `;
+            
+            fragment.appendChild(messageDiv);
+        });
+        
+        // Append all new messages at once
+        conversationDiv.appendChild(fragment);
+        
+        // Conditional auto-scroll logic:
+        // Only scroll to bottom if user was already at the bottom before new messages
+        if (wasAtBottom) {
+            // Use setTimeout to ensure DOM has updated before scrolling
+            setTimeout(() => {
+                conversationDiv.scrollTop = conversationDiv.scrollHeight;
+                console.log('Auto-scrolled to bottom (user was at bottom)');
+            }, 10);
+        } else {
+            console.log('User not at bottom, skipping auto-scroll');
+        }
+        
+        // Update scroll button visibility
+        updateScrollButtonVisibility();
     }
+}
+
+// Helper function to parse time string (HH:MM:SS) to timestamp
+function parseTimeString(timeStr) {
+    const [hours, minutes, seconds] = timeStr.split(':').map(Number);
+    const now = new Date();
+    return new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        hours,
+        minutes,
+        seconds
+    ).getTime();
+}
+
+// Helper function to format time as HH:MM:SS
+function formatTime(date) {
+    return date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit', hour12: false});
+}
 
     // Helper function to check if a message is already displayed
     function isMessageDisplayed(type, text) {

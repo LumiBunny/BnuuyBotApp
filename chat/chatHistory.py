@@ -133,19 +133,19 @@ class ChatHistory:
         self.messages = system_prompts
         self._save_to_file()
         
-        # Reset summarizer for new session
+        # Reset summarizer for new session (only on reset, not shutdown)
         self.summarizer.reset_session()
         
         return self
-    
+
     def end_session(self):
         """End the current chat session and generate final summary."""
         if len(self.messages) > 1:  # More than just system prompt
             summary = self.summarizer.end_session(self.get_formatted_history(), "session_ended")
             print("📖 Chat log summarized! (Session ended)")
         
-        # Reset summarizer
-        self.summarizer.reset_session()
+        # DO NOT reset summarizer here - this prevents creating a new empty file
+        # Only reset on actual chat reset, not on shutdown
         
         return self
 

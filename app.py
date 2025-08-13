@@ -348,6 +348,40 @@ def toggle_tts():
             "tts_enabled": tts_enabled
         })
 
+@app.route('/end_chat_session', methods=['POST'])
+def end_chat_session():
+    # Endpoint to properly end the chat session before shutdown.
+    try:
+        # End the chat session to ensure proper cleanup and summarization
+        if hasattr(bunny, 'chat_history'):
+            bunny.chat_history.end_session()
+            return jsonify({"success": True, "message": "Chat session ended successfully"})
+        return jsonify({"success": True, "message": "No active chat session to end"})
+    except Exception as e:
+        print(f"Error ending chat session: {str(e)}")
+        return jsonify({"success": False, "message": f"Failed to end chat session: {str(e)}"}), 500
+
+@app.route('/shutdown', methods=['POST'])
+def shutdown():
+    # End the chat session and summarize before shutting down
+    try:
+        if hasattr(bunny, 'chat_history') and bunny.chat_history:
+            bunny.chat_history.end_session()
+            print("[INFO] Chat session ended and summarized before shutdown")
+    except Exception as e:
+        app.logger.error(f"Error during session end: {str(e)}")
+    
+    # Shut down the Flask server
+    shutdown_server()
+    return jsonify({"success": True, "message": "Server is shutting down..."})
+
+def shutdown_server():
+    # Helper function to shut down the Flask server
+    func = request.environ.get('werkzeug.server.shutdown')
+    if func is None:
+        os._exit(0)
+    func()
+
 def reset_application_state():
     global is_transcribing, current_text
     
@@ -360,19 +394,6 @@ def reset_application_state():
     current_text = "Waiting for speech..."
     
     print("\n[INFO] Application state reset to defaults")
-
-@app.route('/shutdown', methods=['POST'])
-def shutdown():
-    # Shut down the Flask server
-    shutdown_server()
-    return jsonify({"success": True, "message": "Server is shutting down..."})
-
-def shutdown_server():
-    # Helper function to shut down the Flask server
-    func = request.environ.get('werkzeug.server.shutdown')
-    if func is None:
-        os._exit(0)
-    func()
 
 if __name__ == '__main__':
     print("\n" + "="*50)
