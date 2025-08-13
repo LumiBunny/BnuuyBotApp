@@ -4,6 +4,8 @@ import requests
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 import os
+import re
+from difflib import SequenceMatcher
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +16,8 @@ class InnerDialogue:
     def __init__(self, 
                  lm_studio_endpoint: str = "http://localhost:1234/v1/chat/completions",
                  model_name: str = "llama-3.2-1b-instruct-uncensored",
-                 log_directory: str = "logs/inner_dialogue"):
+                 log_directory: str = "logs/inner_dialogue",
+                 relevancy_threshold: float = 0.3):
         """
         Initialize the inner dialogue system.
         
@@ -22,10 +25,12 @@ class InnerDialogue:
             lm_studio_endpoint: LM Studio API endpoint
             model_name: Name of the model to use for inner thoughts
             log_directory: Directory to store thought logs
+            relevancy_threshold: Minimum relevancy score for memories to be considered
         """
         self.endpoint = lm_studio_endpoint
         self.model_name = model_name
         self.log_directory = log_directory
+        self.relevancy_threshold = relevancy_threshold
         
         # Create log directory if it doesn't exist
         os.makedirs(log_directory, exist_ok=True)
@@ -37,11 +42,11 @@ class InnerDialogue:
         - Important mood or interest changes you notice
         - Quick insights about the current situation
 
-        Be perceptive. Keep it brief but meaningful. Focus on the most important insight."""
+        Stay relevant to the current conversation flow. Be perceptive. Keep it brief but meaningful. Focus on the most important insight."""
         
         logger.info(f"InnerDialogue initialized with model: {model_name}")
     
-    def think_about_message(self, user_message: str, user_id: str, context_data: Dict[str, Any]) -> Optional[str]:
+    def think_about_message(self, user_message: str, user_id: str, context_data: Dict[str, Any], recent_messages: List[Dict] = None) -> Optional[str]:
         """
         Main entry point - analyzes context and generates appropriate inner thought.
         
@@ -54,17 +59,24 @@ class InnerDialogue:
                 - mood_score: Current mood intensity (0-1)
                 - interest_scores: Dict of interest categories and scores
                 - mood_summary: Current mood description
+            recent_messages: Last 10 messages for context relevancy
         
         Returns:
             Generated inner thought string or None
         """
         try:
+            # Filter memories by relevancy to recent conversation
+            if recent_messages is None:
+                recent_messages = []
+            
+            filtered_context = self._filter_context_by_relevancy(context_data, recent_messages, user_message)
+            
             # Determine thinking trigger and generate appropriate thought
-            trigger_type, thought = self._determine_thinking_approach(user_message, user_id, context_data)
+            trigger_type, thought = self._determine_thinking_approach(user_message, user_id, filtered_context, recent_messages)
             
             if thought:
                 # Log the thought for debugging
-                self._log_thought(trigger_type, user_message, user_id, context_data, thought)
+                self._log_thought(trigger_type, user_message, user_id, filtered_context, thought)
                 logger.debug(f"Inner thought ({trigger_type}): {thought}")
                 
             return thought
@@ -73,22 +85,115 @@ class InnerDialogue:
             logger.error(f"Error generating inner thought: {e}")
             return None
     
-    def _determine_thinking_approach(self, user_message: str, user_id: str, context_data: Dict[str, Any]) -> tuple[str, Optional[str]]:
+    def _filter_context_by_relevancy(self, context_data: Dict[str, Any], recent_messages: List[Dict], current_message: str) -> Dict[str, Any]:
+        """
+        Filter context data to only include relevant memories and information.
+        
+        Args:
+            context_data: Original context data
+            recent_messages: Last 10 messages for relevancy checking
+            current_message: Current user message
+            
+        Returns:
+            Filtered context data with only relevant information
+        """
+        filtered_context = context_data.copy()
+        
+        # Get recent conversation text for relevancy scoring
+        recent_text = self._extract_recent_conversation_text(recent_messages, current_message)
+        
+        # Filter memories by relevancy
+        relevant_memories = context_data.get('relevant_memories', [])
+        if relevant_memories:
+            scored_memories = []
+            for memory in relevant_memories:
+                memory_text = str(memory.get('content', '')) + ' ' + str(memory.get('summary', ''))
+                relevancy_score = self._calculate_relevancy_score(memory_text, recent_text)
+                
+                if relevancy_score >= self.relevancy_threshold:
+                    scored_memories.append({
+                        'memory': memory,
+                        'relevancy_score': relevancy_score
+                    })
+            
+            # Sort by relevancy and take top 3 most relevant
+            scored_memories.sort(key=lambda x: x['relevancy_score'], reverse=True)
+            filtered_context['relevant_memories'] = [item['memory'] for item in scored_memories[:3]]
+        
+        return filtered_context
+    
+    def _extract_recent_conversation_text(self, recent_messages: List[Dict], current_message: str) -> str:
+        """Extract text from recent messages for relevancy comparison."""
+        text_parts = [current_message]
+        
+        for msg in recent_messages[-10:]:  # Last 10 messages
+            content = msg.get('content', '')
+            if content and len(content.strip()) > 0:
+                text_parts.append(content)
+        
+        return ' '.join(text_parts).lower()
+    
+    def _calculate_relevancy_score(self, memory_text: str, recent_text: str) -> float:
+        """
+        Calculate relevancy score between memory and recent conversation.
+        
+        Args:
+            memory_text: Text from the memory
+            recent_text: Recent conversation text
+            
+        Returns:
+            Relevancy score between 0 and 1
+        """
+        if not memory_text or not recent_text:
+            return 0.0
+        
+        memory_text = memory_text.lower()
+        recent_text = recent_text.lower()
+        
+        # Extract key words (longer than 3 characters, not common words)
+        common_words = {'the', 'and', 'but', 'for', 'are', 'with', 'this', 'that', 'have', 'was', 'you', 'they', 'been', 'their', 'said', 'each', 'which', 'what', 'where', 'when', 'how', 'why', 'who', 'will', 'more', 'very', 'can', 'had', 'her', 'his', 'she', 'him', 'one', 'our', 'out', 'day', 'get', 'use', 'man', 'new', 'now', 'way', 'may', 'say'}
+        
+        memory_words = set(re.findall(r'\b\w{4,}\b', memory_text)) - common_words
+        recent_words = set(re.findall(r'\b\w{4,}\b', recent_text)) - common_words
+        
+        if not memory_words or not recent_words:
+            return 0.0
+        
+        # Calculate word overlap
+        overlap = len(memory_words.intersection(recent_words))
+        total_unique = len(memory_words.union(recent_words))
+        
+        if total_unique == 0:
+            return 0.0
+        
+        word_similarity = overlap / total_unique
+        
+        # Also check sequence similarity for phrases
+        sequence_similarity = SequenceMatcher(None, memory_text, recent_text).ratio()
+        
+        # Combine both scores with word overlap weighted higher
+        final_score = (word_similarity * 0.7) + (sequence_similarity * 0.3)
+        
+        return min(final_score, 1.0)
+    
+    def _determine_thinking_approach(self, user_message: str, user_id: str, context_data: Dict[str, Any], recent_messages: List[Dict]) -> tuple[str, Optional[str]]:
         """
         Analyze context to determine which type of thinking to trigger.
+        Always returns some form of thought, even if just reflecting on the current message.
         
         Returns:
             Tuple of (trigger_type, generated_thought)
         """
-        # Check for new preferences
+        # Check for new preferences (highest priority)
         new_preferences = context_data.get('new_preferences', [])
         if new_preferences:
-            return "new_preferences", self._think_new_preferences(user_id, new_preferences, user_message)
+            return "new_preferences", self._think_new_preferences(user_id, new_preferences, user_message, recent_messages)
         
-        # Check for relevant memories
+        # Check for relevant memories (filtered by relevancy)
         relevant_memories = context_data.get('relevant_memories', [])
         if relevant_memories:
-            return "relevant_memories", self._think_relevant_memories(user_id, relevant_memories, user_message)
+            # We have relevant memories, use them in the reflection
+            return "relevant_memories", self._think_relevant_memories(user_id, relevant_memories, user_message, recent_messages)
         
         # Check for strong mood/interest signals
         mood_score = context_data.get('mood_score', 0)
@@ -97,88 +202,93 @@ class InnerDialogue:
         # High mood intensity (above 0.7)
         if mood_score > 0.7:
             mood_summary = context_data.get('mood_summary', 'strong emotional state')
-            return "strong_mood", self._think_strong_signals(user_id, "mood", mood_score, mood_summary, user_message)
+            return "strong_mood", self._think_strong_signals(user_id, "mood", mood_score, mood_summary, user_message, recent_messages)
         
         # High interest scores (above 0.8)
         for interest, score in interest_scores.items():
             if score > 0.8:
-                return "strong_interest", self._think_strong_signals(user_id, "interest", score, interest, user_message)
+                return "strong_interest", self._think_strong_signals(user_id, "interest", score, interest, user_message, recent_messages)
         
-        # Default to general reflection
-        return "general_reflection", self._think_general_reflection(user_id, user_message, context_data)
+        # Default to general reflection about the current message/conversation
+        # This ensures we always return some form of reflection
+        return "general_reflection", self._think_general_reflection(user_id, user_message, context_data, recent_messages)
     
-    def _think_new_preferences(self, user_id: str, new_preferences: List[str], user_message: str) -> Optional[str]:
-        # Generate thoughts about newly discovered preferences.
+    def _think_new_preferences(self, user_id: str, new_preferences: List[str], user_message: str, recent_messages: List[Dict]) -> Optional[str]:
+        """Generate thoughts about newly discovered preferences."""
         preferences_text = ", ".join(new_preferences)
+        recent_context = self._get_recent_context_summary(recent_messages)
         
         prompt = f"""You've just learned new preferences from {user_id}: {preferences_text}
 
-        Their message was: "{user_message}"
+        Their current message: "{user_message}"
+        Recent conversation context: {recent_context}
 
-        What does this tell you about them? Any insights about their personality or needs?"""
+        What does this tell you about them in the context of what you've been discussing? Keep it brief and relevant."""
         
         return self._generate_thought(prompt)
     
-    def _think_relevant_memories(self, user_id: str, memories: List[Dict], user_message: str) -> Optional[str]:
-        # Generate thoughts about relevant memories found.
-        if not memories:
-            return None
-            
-        # Filter memories for topic relevance
-        relevant_memories = self._filter_topically_relevant_memories(memories, user_message)
+    def _think_relevant_memories(self, user_id: str, relevant_memories: List[Dict], user_message: str, recent_messages: List[Dict]) -> Optional[str]:
+        """Generate thoughts about relevant memories (now pre-filtered for relevancy)."""
+        memory_summaries = []
+        for memory in relevant_memories[:2]:  # Limit to top 2 most relevant
+            content = memory.get('content', '')
+            summary = memory.get('summary', '')
+            memory_text = summary if summary else content[:100]
+            memory_summaries.append(memory_text)
         
-        if not relevant_memories:
-            return None  # No topically relevant memories found
-            
-        # Format memory information
-        memory_info = []
-        for memory in relevant_memories[:2]:  # Limit to 2 most relevant
-            date = memory.get('date', 'unknown date')
-            content = memory.get('content', '')[:100]  # Truncate long memories
-            memory_info.append(f"'{content}' (from {date})")
+        memories_text = " | ".join(memory_summaries)
+        recent_context = self._get_recent_context_summary(recent_messages)
         
-        memories_text = " | ".join(memory_info)
-        
-        prompt = f"""Hey, {user_id} mentioned something related before: {memories_text}
+        prompt = f"""Relevant memories about {user_id}: {memories_text}
 
         Their current message: "{user_message}"
+        Recent conversation: {recent_context}
 
-        What connections do you notice? How might this past context inform the current conversation?"""
+        How do these memories connect to what they're saying now? What insight does this give you?"""
         
         return self._generate_thought(prompt)
     
-    def _think_strong_signals(self, user_id: str, signal_type: str, score: float, content: str, user_message: str) -> Optional[str]:
-        # Generate thoughts about strong mood or interest signals.
-        prompt = f"""I'm noticing {user_id} has a really strong {signal_type} about '{content}' (intensity: {score:.2f}).
+    def _think_strong_signals(self, user_id: str, signal_type: str, score: float, description: str, user_message: str, recent_messages: List[Dict]) -> Optional[str]:
+        """Generate thoughts about strong mood or interest signals."""
+        recent_context = self._get_recent_context_summary(recent_messages)
+        
+        prompt = f"""Strong {signal_type} detected for {user_id}: {description} (intensity: {score:.2f})
 
         Their message: "{user_message}"
+        Recent conversation: {recent_context}
 
-        What might this intensity mean? What should I be aware of?"""
+        What does this {signal_type} tell you about their current state in this conversation context?"""
         
         return self._generate_thought(prompt)
     
-    def _think_general_reflection(self, user_id: str, user_message: str, context_data: Dict[str, Any]) -> Optional[str]:
-        # Generate general thoughtful observations.
-        # Build basic context
-        context_summary = []
-        if context_data.get('mood_summary'):
-            context_summary.append(f"mood: {context_data['mood_summary']}")
+    def _think_general_reflection(self, user_id: str, user_message: str, context_data: Dict[str, Any], recent_messages: List[Dict]) -> Optional[str]:
+        """Generate general reflective thoughts (used sparingly)."""
+        recent_context = self._get_recent_context_summary(recent_messages)
         
-        interest_scores = context_data.get('interest_scores', {})
-        if interest_scores:
-            top_interest = max(interest_scores.items(), key=lambda x: x[1])
-            if top_interest[1] > 0.3:  # Only mention if somewhat significant
-                context_summary.append(f"interested in: {top_interest[0]}")
-        
-        context_text = ", ".join(context_summary) if context_summary else "no specific context signals"
-        
-        prompt = f"""{user_id} said: "{user_message}"
+        prompt = f"""{user_id} just said: "{user_message}"
 
-        Current context: {context_text}
+        Recent conversation flow: {recent_context}
 
-        What do you think about this? Any insights or observations?"""
+        What's the most important thing to notice about where this conversation is going right now?"""
         
         return self._generate_thought(prompt)
+    
+    def _get_recent_context_summary(self, recent_messages: List[Dict]) -> str:
+        """Get a brief summary of recent conversation context."""
+        if not recent_messages:
+            return "No recent context"
+        
+        # Get last 3-5 messages for context
+        context_messages = recent_messages[-5:]
+        context_parts = []
+        
+        for msg in context_messages:
+            role = msg.get('role', 'unknown')
+            content = msg.get('content', '')[:100]  # Truncate long messages
+            if content:
+                context_parts.append(f"{role}: {content}")
+        
+        return " → ".join(context_parts) if context_parts else "No recent context"
     
     def _generate_thought(self, prompt: str) -> Optional[str]:
         """
@@ -224,74 +334,6 @@ class InnerDialogue:
         except Exception as e:
             logger.error(f"Error generating thought: {e}")
             return None
-    
-    def _filter_topically_relevant_memories(self, memories: List[Dict], user_message: str) -> List[Dict]:
-        """Filter memories to only include those topically relevant to the current message."""
-        if not memories:
-            return []
-            
-        # Extract key topics from current message
-        message_lower = user_message.lower()
-        current_topics = set()
-        
-        # Technical/coding topics
-        tech_keywords = ['python', 'code', 'coding', 'programming', 'module', 'function', 'class', 'variable', 
-                        'script', 'debug', 'error', 'syntax', 'import', 'library', 'framework', 'api']
-        
-        # Food topics  
-        food_keywords = ['food', 'eat', 'eating', 'hungry', 'meal', 'cook', 'cooking', 'recipe', 'taste',
-                        'carrot', 'pizza', 'vegetable', 'fruit', 'dinner', 'lunch', 'breakfast']
-        
-        # General topics
-        entertainment_keywords = ['game', 'gaming', 'stream', 'streaming', 'twitch', 'video', 'music', 'movie']
-        
-        # Categorize current message
-        for keyword in tech_keywords:
-            if keyword in message_lower:
-                current_topics.add('tech')
-                break
-                
-        for keyword in food_keywords:
-            if keyword in message_lower:
-                current_topics.add('food')
-                break
-                
-        for keyword in entertainment_keywords:
-            if keyword in message_lower:
-                current_topics.add('entertainment')
-                break
-        
-        # If no specific topics detected, allow all memories (general conversation)
-        if not current_topics:
-            return memories
-        
-        # Filter memories based on topic relevance
-        relevant_memories = []
-        for memory in memories:
-            memory_content = memory.get('content', '').lower()
-            memory_topics = set()
-            
-            # Check what topics this memory contains
-            for keyword in tech_keywords:
-                if keyword in memory_content:
-                    memory_topics.add('tech')
-                    break
-                    
-            for keyword in food_keywords:
-                if keyword in memory_content:
-                    memory_topics.add('food')
-                    break
-                    
-            for keyword in entertainment_keywords:
-                if keyword in memory_content:
-                    memory_topics.add('entertainment')
-                    break
-            
-            # Include memory if it shares topics with current message
-            if current_topics.intersection(memory_topics):
-                relevant_memories.append(memory)
-        
-        return relevant_memories
     
     def _log_thought(self, trigger_type: str, user_input: str, user_id: str, 
                     context_data: Dict[str, Any], thought_output: str):

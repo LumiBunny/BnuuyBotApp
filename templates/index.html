@@ -141,6 +141,29 @@
                 </div>
             </div>
         </div>
+        
+        <!-- Right Sidebar -->
+        <div class="right-sidebar">
+            <div class="right-panel top-panel">
+                <!-- Top panel (60% height) -->
+                <h3>Panel 1</h3>
+                <div class="panel-content">
+                    <!-- Content will go here -->
+                </div>
+            </div>
+            <div class="right-panel bottom-panel">
+                <!-- Bottom panel (45% height) - Output Panel -->
+                <h3>System Output 📊</h3>
+                <div class="output-panel-container">
+                    <div id="output-messages" class="output-messages">
+                        <!-- Output messages will appear here -->
+                    </div>
+                    <button id="output-scroll-btn" class="scroll-to-bottom-btn" style="display: none;">
+                        ↓ Scroll to Bottom
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script src="{{ url_for('static', filename='js/ajax.js') }}"></script>

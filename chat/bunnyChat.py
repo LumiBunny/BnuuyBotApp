@@ -87,12 +87,17 @@ class BunnyChat:
             user_id (str, optional): The ID of the user sending the message. 
             Defaults to 'lumi'.
         """
-        # Add to chat systems
+        # Process message for preferences, interests, memories, and inner thoughts
+        # This ensures processing happens for every message
+        inner_thought, context_data = self._process_user_message_optimized(user_id, message)
+        
+        # Add to chat systems after processing
         self.chat_history.add_message('user', message, user_id=user_id)
         self.chat.add_user_message(message)
         
-        # Process message for preferences and memories
-        self._process_user_message(user_id, message)
+        # If we have an inner thought, log it
+        if inner_thought:
+            print(f"💭 Inner thought: {inner_thought}")
     
     def _process_user_message(self, user_id: str, message: str):
         """Process user message for preferences, interests, memories, and generate inner thoughts."""
@@ -549,7 +554,9 @@ Use this internal reflection to inform your response, but don't mention it direc
             "tell me more", "what else", "more", "keep talking"
         ]
         message_lower = message.lower().strip()
-        return any(pattern in message_lower for pattern in continue_patterns)
+        
+        # Check if the message is exactly one of the continue patterns
+        return message_lower in continue_patterns
     
     def _handle_continue_request(self, message, user_id):
         """Handle continuation requests by prompting the model to continue"""

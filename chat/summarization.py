@@ -57,12 +57,12 @@ class ChatSummarizer:
         self._initialize_session_file()
         
     def _ensure_directories(self):
-        """Create necessary directory structure."""
+        # Create necessary directory structure.
         for directory in [self.summaries_dir, self.raw_chats_dir]:
             directory.mkdir(parents=True, exist_ok=True)
     
     def _initialize_session_file(self):
-        """Initialize the session summary file."""
+        # Initialize the session summary file."""
         # Create filename with session start timestamp
         filename = f"session_{self.session_start_time.strftime('%Y%m%d_%H%M%S')}.json"
         self.session_file = self.summaries_dir / filename
@@ -83,7 +83,7 @@ class ChatSummarizer:
         logger.info(f"Initialized session file: {self.session_file}")
     
     def _save_session_file(self):
-        """Save the current session data to file."""
+        # Save the current session data to file.
         try:
             with open(self.session_file, 'w', encoding='utf-8') as f:
                 json.dump(self.session_data, f, indent=2, ensure_ascii=False)
@@ -139,22 +139,26 @@ class ChatSummarizer:
         Returns:
             Formatted prompt for summarization
         """
-        # Format messages for the prompt
+        # Format messages for the prompt with proper names
         formatted_messages = []
         for msg in messages:
             role = msg.get('role', 'unknown')
             content = msg.get('content', '')
             
-            if role in ['user', 'assistant']:
-                formatted_messages.append(f"{role.capitalize()}: {content}")
+            if role == 'user':
+                # Use the actual user_id instead of generic "user"
+                formatted_messages.append(f"{self.user_id}: {content}")
+            elif role == 'assistant':
+                # Use "Bunny" instead of generic "assistant"
+                formatted_messages.append(f"Bunny: {content}")
         
         messages_text = "\n".join(formatted_messages)
         
-        prompt = f"""Create a very brief summary (1-2 sentences maximum) of these recent messages:
+        prompt = f"""Create a very brief summary (2-4 sentences maximum) of these recent messages between {self.user_id} and Bunny:
 
-{messages_text}
+        {messages_text}
 
-Focus only on the most important topics discussed. Be extremely concise:"""
+        Focus only on the most important topics discussed. Use {self.user_id}'s name and refer to the assistant as Bunny. Be concise:"""
         
         return prompt
     
@@ -245,11 +249,11 @@ Focus only on the most important topics discussed. Be extremely concise:"""
             all_summaries = [entry["summary"] for entry in self.session_data["periodic_summaries"]]
             combined_text = " ".join(all_summaries)
             
-            final_prompt = f"""Create a brief overall summary (2-3 sentences) of this entire chat session based on these periodic summaries:
+            final_prompt = f"""Create a brief overall summary (3-5 sentences) of this entire chat session based on these periodic summaries:
 
-{combined_text}
+        {combined_text}
 
-Provide a cohesive overview of the main topics and outcomes:"""
+        Provide a cohesive overview of the main topics and outcomes:"""
             
             final_summary = self._call_lm_studio(final_prompt, max_tokens=150)
         elif len(self.session_data["periodic_summaries"]) == 1:
