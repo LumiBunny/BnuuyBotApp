@@ -134,7 +134,13 @@ class TTSEngine:
                     
                     cleaned_text = self.clean_text_for_speech(text)
                     if cleaned_text:
-                        self.speak_with_callback(cleaned_text)
+                        print(f"DEBUG: Processing TTS queue item: {cleaned_text[:50]}...")
+                        # Use a callback to ensure on_playback_finished is called
+                        def queue_callback():
+                            print("DEBUG: TTS queue item finished, checking for more items")
+                            self.is_speaking = False
+                        
+                        self.speak_with_callback(cleaned_text, callback=queue_callback)
                 
                 time.sleep(0.1)
             except Exception as e:

@@ -38,7 +38,11 @@ class BunnyChat:
         Args: initial_messages (list, optional): List of messages to initialize the chat with.
         Each message should be a dict with 'role' and 'content'.
         Create ChatHistory with system prompt (for user usage)"""
-        self.chat_history = ChatHistory(self.system_prompt)
+        # Initialize ChatHistory with user_id and system_prompt
+        self.chat_history = ChatHistory(
+            user_id="lumi",  # Fixed: Pass user_id as first parameter
+            system_prompt=self.system_prompt
+        )
         
         # Initialize chat with system prompt (for the chatbot)
         self.chat = lms.Chat(self.system_prompt)

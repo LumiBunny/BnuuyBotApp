@@ -1,6 +1,7 @@
 from flask import Flask, render_template, jsonify, request, redirect, url_for
 from audio import SpeechToText, TTSEngine
 from chat import BunnyChat, ChatHistory
+import pygame
 import time
 import os
 import logging
@@ -68,7 +69,12 @@ def process_message(text):
     
     # Add to TTS queue only if TTS is enabled
     if tts_enabled:
+        print(f"DEBUG: Adding response to TTS queue: {response[:50]}...")
         tts.add_to_queue(response)
+        # Force start TTS processing if not already running
+        if not hasattr(tts, 'queue_thread') or not tts.queue_thread.is_alive():
+            print("DEBUG: Restarting TTS queue processing thread")
+            tts.start()
 
 def process_buffered_messages():
     """Process all buffered messages when TTS finishes"""
