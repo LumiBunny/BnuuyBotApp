@@ -21,33 +21,16 @@ socket.on('disconnect', () => {
 socket.on('output_event', (data) => {
     console.log('Received output event:', data);
     
-    // Map server event types to OutputManager methods
-    const eventHandlers = {
-        'system': OutputManager.system,
-        'tts_on': OutputManager.ttsOn,
-        'tts_off': OutputManager.ttsOff,
-        'tts_playing': OutputManager.ttsPlaying,
-        'tts_finished': OutputManager.ttsFinished,
-        'stt_on': OutputManager.sttOn,
-        'stt_off': OutputManager.sttOff,
-        'stt_transcribing': OutputManager.sttTranscribing,
-        'bot_processing': OutputManager.botProcessing,
-        'inner_thoughts': OutputManager.innerThoughts,
-        'preferences': OutputManager.preferences,
-        'interests': OutputManager.interests,
-        'mood': OutputManager.mood,
-        'memories': OutputManager.memories,
-        'continuation': OutputManager.continuation
+    // Convert the WebSocket event to match the polling format
+    const event = {
+        type: data.type,
+        content: data.content,
+        data: data.data || {},
+        is_streaming: data.is_streaming || false
     };
     
-    // Call the appropriate handler if it exists
-    const handler = eventHandlers[data.type];
-    if (handler) {
-        handler(data.content, data.data);
-    } else {
-        console.warn('Unknown event type:', data.type);
-        OutputManager.system(data.content || 'Unknown event', data.data);
-    }
+    // Process the event using the same function as the polling system
+    processOutputEvent(event);
 });
 
 // Handle user messages in the conversation container
@@ -181,7 +164,8 @@ const OutputTypes = {
     MOOD: { type: 'mood', emoji: '😊', label: 'Mood' },
     MEMORIES: { type: 'memories', emoji: '🧠', label: 'Memories' },
     TTS_ON: { type: 'tts-on', emoji: '🔊', label: 'TTS' },
-    TTS_OFF: { type: 'tts-off', emoji: '🔇', label: 'TTS' },
+    TTS_OFF_MANUAL: { type: 'tts-off-manual', emoji: '🔇', label: 'TTS' },
+    TTS_OFF_PLAYBACK_FINISHED: { type: 'tts-off-playback-finished', emoji: '⏹️', label: 'TTS' },
     TTS_PLAYING: { type: 'tts-playing', emoji: '▶️', label: 'TTS' },
     TTS_FINISHED: { type: 'tts-finished', emoji: '⏹️', label: 'TTS' },
     STT_ON: { type: 'stt-on', emoji: '🎤', label: 'STT' },
@@ -197,6 +181,12 @@ let lastStreamingType = null;
 
 // Enhanced Output Panel Functions
 function addOutputMessage(content, outputType = OutputTypes.SYSTEM, data = null, isStreaming = false) {
+    console.log('Adding output message:', { 
+        content, 
+        outputType, 
+        hasData: !!data,
+        isStreaming
+    });
     const outputMessages = document.getElementById('output-messages');
     if (!outputMessages) {
         console.error('Output messages container not found');
@@ -373,8 +363,12 @@ const OutputManager = {
         addOutputMessage('TTS: Text-to-speech enabled', OutputTypes.TTS_ON);
     },
     
-    ttsOff() {
-        addOutputMessage('TTS: Text-to-speech disabled', OutputTypes.TTS_OFF);
+    ttsOffManual() {
+        addOutputMessage('TTS: Text-to-speech disabled manually', OutputTypes.TTS_OFF_MANUAL);
+    },
+    
+    ttsOffPlaybackFinished() {
+        addOutputMessage('TTS: Playback finished', OutputTypes.TTS_OFF_PLAYBACK_FINISHED);
     },
     
     ttsPlaying(text) {
@@ -436,24 +430,6 @@ function setupOutputPanel() {
 // Output Events Polling System
 let outputPollingInterval = null;
 
-function startOutputPolling() {
-    // Poll for output events every 500ms
-    outputPollingInterval = setInterval(async () => {
-        try {
-            const response = await fetch('/get_output_events');
-            const data = await response.json();
-            
-            if (data.success && data.events && data.events.length > 0) {
-                // Process each event
-                data.events.forEach(event => {
-                    processOutputEvent(event);
-                });
-            }
-        } catch (error) {
-            console.error('Error polling output events:', error);
-        }
-    }, 500);
-}
 
 function stopOutputPolling() {
     if (outputPollingInterval) {
@@ -464,7 +440,7 @@ function stopOutputPolling() {
 
 function processOutputEvent(event) {
     const { type, content, data, is_streaming: isStreaming = false } = event;
-    
+    console.log('Processing output event:', event);
     // Call the appropriate OutputManager method based on event type
     switch(type) {
         case 'botProcessing':
@@ -492,8 +468,11 @@ function processOutputEvent(event) {
         case 'ttsOn':
             OutputManager.ttsOn();
             break;
-        case 'ttsOff':
-            OutputManager.ttsOff();
+        case 'ttsOffManual':
+            OutputManager.ttsOffManual();
+            break;
+        case 'ttsOffPlaybackFinished':
+            OutputManager.ttsOffPlaybackFinished();
             break;
         case 'ttsPlaying':
             OutputManager.ttsPlaying(content);

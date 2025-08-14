@@ -131,6 +131,19 @@ class BunnyChat:
                 # Only show message if preferences were actually found
                 if any(p.confidence > 0.5 for p in preference_results):
                     print("📝 Learned new preferences!")
+                    # Emit to frontend if callback is available
+                    if self.output_callback:
+                        self.output_callback('preferences', f"📝 New preferences detected: {pref_summary}")
+                else:
+                    # Emit no new preferences message
+                    if self.output_callback:
+                        self.output_callback('preferences', "💞 No new preferences detected")
+            else:
+                # Emit no new preferences message when no results
+                if self.output_callback:
+                    self.output_callback('preferences', "💞 No new preferences detected")
+                
+                context_data['new_preferences'] = []
             
             context_data['new_preferences'] = new_preferences
             
@@ -138,7 +151,12 @@ class BunnyChat:
             interests = self.interest_tracker.track_conversation_interests(user_id, message)
             if interests and any(score > 0.3 for score in interests.values()):
                 print("📊 Updated interests!")
-                
+                # Emit to frontend if callback is available
+                if self.output_callback:
+                    top_interests = sorted(interests.items(), key=lambda x: x[1], reverse=True)[:3]
+                    interest_list = ", ".join([f"{k} ({v:.1f})" for k, v in top_interests])
+                    self.output_callback('interests', f"📚 Analyzing interests in: {interest_list}")
+            
             context_data['interest_scores'] = interests or {}
             
         except Exception as e:
@@ -181,6 +199,9 @@ class BunnyChat:
             inner_thought = self.inner_dialogue.think_about_message(message, user_id, context_data)
             if inner_thought:
                 print(f"💭 Inner thought: {inner_thought}")
+                # Emit to frontend if callback is available
+                if self.output_callback:
+                    self.output_callback('inner_thoughts', f"💭 Inner thought: {inner_thought}")
             
         except Exception as e:
             print(f"Error processing memories/mood/inner thoughts: {e}")
@@ -205,7 +226,8 @@ class BunnyChat:
                     message,
                     "important_conversation",
                     importance=0.8,
-                    tags=["conversation", "important"]
+                    tags=["conversation", "important"],
+                    context=message
                 )
                 print(f"💾 Saved important message to memory")
         except Exception as e:
@@ -305,12 +327,12 @@ class BunnyChat:
         return {'mood_score': 0.5, 'mood_summary': 'neutral'}
     
     def _is_reminder_request(self, message):
-        # Check if message contains a reminder request.
+        """Check if message contains a reminder request"""
         reminder_keywords = ["remind me", "reminder", "don't forget", "remember to", "appointment", "meeting"]
         return any(keyword in message.lower() for keyword in reminder_keywords)
     
     def _extract_reminder_text(self, message):
-        # Extract the reminder text from a message.
+        """Extract the reminder text from a message"""
         # Simple extraction - you can make this more sophisticated
         if "remind me to" in message.lower():
             return message.lower().split("remind me to", 1)[1].strip()
@@ -319,7 +341,7 @@ class BunnyChat:
         return message.strip()
     
     def _extract_due_date(self, message):
-        # Extract due date from message (basic implementation).
+        """Extract due date from message (basic implementation)"""
         from datetime import datetime, timedelta
         
         # Simple date extraction - you can enhance this
@@ -331,7 +353,7 @@ class BunnyChat:
         return None
     
     def _is_important_message(self, message):
-        # Determine if a message contains important information to remember.
+        """Determine if a message contains important information to remember"""
         important_keywords = [
             "remember", "important", "birthday", "anniversary", "favorite", 
             "hate", "love", "never", "always", "family", "work", "school",
@@ -340,7 +362,7 @@ class BunnyChat:
         return any(keyword in message.lower() for keyword in important_keywords)
     
     def _extract_tags(self, message):
-        # Extract relevant tags from a message for memory categorization.
+        """Extract relevant tags from a message for memory categorization"""
         tags = []
         tag_keywords = {
             "food": ["eat", "food", "restaurant", "cook", "recipe", "hungry"],
@@ -359,15 +381,12 @@ class BunnyChat:
         return tags if tags else ["general"]
     
     def add_assistant_message(self, content):
-        """Add an assistant message to the chat history and LM Studio chat.
-        Args:
-            content (str): The message content
-        """
+        """Add an assistant message to the chat history and LM Studio chat"""
         self.chat_history.add_assistant_message(content)
         self.chat.add_assistant_response(content)
     
     def get_response(self, message, user_id="lumi"):
-        """Enhanced response generation with realistic thinking integration."""
+        """Enhanced response generation with realistic thinking integration"""
         print(f"\n🤖 Processing message: {message[:50]}...")
         
         # Check if this is a continuation request
@@ -472,13 +491,11 @@ Use this internal reflection to inform your response, but don't mention it direc
         return response_text
     
     def get_response_stream(self):
-        """Get a streaming response from the model.
-        Returns:
-            generator: A generator that yields response fragments"""
+        """Get a streaming response from the model"""
         return self.model.respond_stream(self.chat)
     
     def save_conversation_summary(self, user_id='lumi'):
-        # Save a summary of the current conversation to memory.
+        # Save a summary of the current conversation to memory
         if len(self.chat_history.messages) < 4:  # Need at least some conversation
             return
         
@@ -505,11 +522,11 @@ Use this internal reflection to inform your response, but don't mention it direc
         print(f"💾 Saved conversation summary with topics: {', '.join(topics)}")
     
     def get_user_memory_stats(self, user_id='lumi'):
-        # Get statistics about what the bot remembers about the user.
+        # Get statistics about what the bot remembers about the user
         return self.memory_manager.get_user_stats(user_id)
     
     def search_memories(self, query, user_id='lumi', max_results=5):
-        # Search through user memories for relevant information.
+        # Search through user memories for relevant information
         return self.memory_manager.find_relevant_memories(user_id, query, max_results)
     
     def run_chat_loop(self):

@@ -17,8 +17,17 @@ app = Flask(__name__)
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Disable caching
 socketio = SocketIO(app, cors_allowed_origins="*")  # Allow cross-origin for development
 
+# Helper function to emit output events
+def emit_output_event(event_type, content, data=None):
+    socketio.emit('output_event', {
+        'type': event_type,
+        'content': content,
+        'data': data or {},
+        'timestamp': time.time()
+    })
+
 # Initialize core components
-bunny = BunnyChat()
+bunny = BunnyChat(output_callback=emit_output_event)
 tts = TTSEngine(voice="en-US-AnaNeural", speed=1.15)
 # Modified STT settings for better microphone detection
 stt = SpeechToText(
@@ -366,6 +375,12 @@ def toggle_tts():
         message = f"TTS {status}"
         print(f"\n[INFO] TTS {status}")
         
+        # Emit system output event for TTS toggle
+        if tts_enabled:
+            emit_output_event('tts_on', f'TTS: Text-to-speech enabled')
+        else:
+            emit_output_event('tts_off_manual', f'TTS: Text-to-speech disabled manually')
+        
         return jsonify({
             "success": True,
             "message": message,
@@ -443,15 +458,6 @@ def handle_disconnect():
         'type': 'system',
         'content': 'Disconnected from server',
         'data': {'status': 'disconnected'}
-    })
-
-# Helper function to emit output events
-def emit_output_event(event_type, content, data=None):
-    socketio.emit('output_event', {
-        'type': event_type,
-        'content': content,
-        'data': data or {},
-        'timestamp': time.time()
     })
 
 if __name__ == '__main__':

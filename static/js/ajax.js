@@ -54,6 +54,15 @@ document.addEventListener('DOMContentLoaded', function() {
                             statusText.textContent = action.includes('start_listening') ? 'Active' : 'Inactive';
                         }
                     }
+                    
+                    // Add system output message for STT toggle
+                    if (typeof OutputManager !== 'undefined') {
+                        if (action.includes('start_listening')) {
+                            OutputManager.sttOn();
+                        } else {
+                            OutputManager.sttOff();
+                        }
+                    }
                 }
             })
             .catch(error => console.error('Error with mic action:', error));
@@ -102,6 +111,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                     ttsStatusText.textContent = data.tts_enabled ? 'Active' : 'Inactive';
                                 }
                             }
+                        }
+                    }
+                    
+                    // Add system output message for TTS toggle
+                    if (typeof OutputManager !== 'undefined') {
+                        if (data.tts_enabled) {
+                            OutputManager.ttsOn();
+                        } else {
+                            OutputManager.ttsOff();
                         }
                     }
                 }
