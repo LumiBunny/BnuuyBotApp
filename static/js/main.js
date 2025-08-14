@@ -1,55 +1,173 @@
+// Add this at the top of your main.js, after the OutputManager definition
+const socket = io();
+
+// Handle connection events
+socket.on('connect', () => {
+    console.log('Connected to WebSocket server');
+    OutputManager.system('Connected to server', {
+        status: 'connected',
+        socketId: socket.id
+    });
+});
+
+socket.on('disconnect', () => {
+    console.log('Disconnected from WebSocket server');
+    OutputManager.system('Disconnected from server', {
+        status: 'disconnected'
+    });
+});
+
+// Handle output events from the server
+socket.on('output_event', (data) => {
+    console.log('Received output event:', data);
+    
+    // Map server event types to OutputManager methods
+    const eventHandlers = {
+        'system': OutputManager.system,
+        'tts_on': OutputManager.ttsOn,
+        'tts_off': OutputManager.ttsOff,
+        'tts_playing': OutputManager.ttsPlaying,
+        'tts_finished': OutputManager.ttsFinished,
+        'stt_on': OutputManager.sttOn,
+        'stt_off': OutputManager.sttOff,
+        'stt_transcribing': OutputManager.sttTranscribing,
+        'bot_processing': OutputManager.botProcessing,
+        'inner_thoughts': OutputManager.innerThoughts,
+        'preferences': OutputManager.preferences,
+        'interests': OutputManager.interests,
+        'mood': OutputManager.mood,
+        'memories': OutputManager.memories,
+        'continuation': OutputManager.continuation
+    };
+    
+    // Call the appropriate handler if it exists
+    const handler = eventHandlers[data.type];
+    if (handler) {
+        handler(data.content, data.data);
+    } else {
+        console.warn('Unknown event type:', data.type);
+        OutputManager.system(data.content || 'Unknown event', data.data);
+    }
+});
+
+// Handle user messages in the conversation container
+socket.on('user_message', (data) => {
+    console.log('Received user message:', data);
+    
+    const conversationDiv = document.getElementById('conversation');
+    if (!conversationDiv) {
+        console.error('Conversation container not found');
+        return;
+    }
+    
+    // Check if we should clear the loading/placeholder message
+    if (conversationDiv.innerHTML.trim() === '<p>No conversation history yet. Start speaking to begin.</p>' || 
+        conversationDiv.innerHTML.includes('No conversation history yet') ||
+        conversationDiv.innerHTML === '<div class="message loading">Loading chat history...</div>') {
+        conversationDiv.innerHTML = '';
+    }
+    
+    // Create message element
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'transcript-item';
+    
+    // Format timestamp
+    const timestamp = new Date();
+    const timeStr = timestamp.toLocaleTimeString('en-US', { 
+        hour12: false, 
+        hour: '2-digit', 
+        minute: '2-digit',
+        second: '2-digit'
+    });
+    
+    // Set message content
+    messageDiv.innerHTML = `
+        <div class="message-name">You</div>
+        <div class="transcript-content">${data.text}</div>
+        <div class="time">${timeStr}</div>
+    `;
+    
+    // Add to conversation
+    conversationDiv.appendChild(messageDiv);
+    
+    // Scroll to bottom if user was already at bottom
+    if (isScrolledToBottom(conversationDiv)) {
+        conversationDiv.scrollTop = conversationDiv.scrollHeight;
+    }
+    
+    // Update scroll button visibility
+    updateScrollButtonVisibility();
+});
+
 // Function to check if the user is at the bottom of the conversation
 function isScrolledToBottom(element) {
     return Math.abs(element.scrollHeight - element.clientHeight - element.scrollTop) < 10;
 }
 
-// Function to create the scroll-to-bottom button
-function createScrollButton(container) {
-    // Check if button already exists
-    if (document.getElementById('scroll-to-bottom')) return;
-    
-    const button = document.createElement('button');
-    button.id = 'scroll-to-bottom';
-    button.innerHTML = '<i class="fa-solid fa-arrow-down"></i>'; // Using Font Awesome icon
-    button.title = 'Scroll to bottom';
-    button.className = 'scroll-button';
-    
-    button.addEventListener('click', () => {
-        container.scrollTop = container.scrollHeight;
-        button.style.display = 'none';
-    });
-    
-    // Add button to the body instead of the container
-    document.body.appendChild(button);
-    
-    // Position the button to hover over the chat box
-    updateScrollButtonPosition(button, container);
-    
-    // Update position on window resize
-    window.addEventListener('resize', () => {
-        updateScrollButtonPosition(button, container);
-    });
-    
-    return button;
-}
-
-// Function to update the scroll button position
-function updateScrollButtonPosition(button, container) {
-    // Get container dimensions and position
-    const containerRect = container.getBoundingClientRect();
-    
-    // Position button at the bottom center of the container
-    button.style.left = (containerRect.left + containerRect.width / 2) + 'px';
-    button.style.bottom = (window.innerHeight - containerRect.bottom + 20) + 'px';
-}
-
-// Function to scroll chat to bottom
-function scrollChatToBottom() {
+// Function to update the scroll button visibility
+function updateScrollButtonVisibility() {
     const conversationDiv = document.getElementById('conversation');
-    if (conversationDiv) {
-        console.log('Scrolling to bottom...');
-        conversationDiv.scrollTop = conversationDiv.scrollHeight;
-        console.log('Scroll position set to:', conversationDiv.scrollTop, 'of', conversationDiv.scrollHeight);
+    const scrollButton = document.getElementById('scroll-to-bottom');
+    
+    if (!conversationDiv || !scrollButton) return;
+    
+    const atBottom = isScrolledToBottom(conversationDiv);
+    scrollButton.style.display = atBottom ? 'none' : 'block';
+}
+
+// Function to check if the user is scrolled to the bottom of the output panel
+function isOutputScrolledToBottom() {
+    const outputMessages = document.getElementById('output-messages');
+    if (!outputMessages) return true;
+    
+    // Add a small threshold (5px) to account for potential rounding issues
+    const threshold = 5;
+    const isAtBottom = Math.abs(outputMessages.scrollHeight - outputMessages.clientHeight - outputMessages.scrollTop) <= threshold;
+    
+    console.log('isOutputScrolledToBottom:', 
+                `scrollHeight: ${outputMessages.scrollHeight}, ` +
+                `clientHeight: ${outputMessages.clientHeight}, ` +
+                `scrollTop: ${outputMessages.scrollTop}, ` +
+                `isAtBottom: ${isAtBottom}`);
+    
+    return isAtBottom;
+}
+
+// Function to scroll the output panel to the bottom
+function scrollOutputToBottom() {
+    const outputMessages = document.getElementById('output-messages');
+    if (!outputMessages) return;
+    
+    console.log('scrollOutputToBottom: Attempting to scroll...');
+    
+    // Force a reflow before scrolling
+    const scrollHeight = outputMessages.scrollHeight;
+    outputMessages.scrollTop = scrollHeight;
+    
+    console.log(`scrollOutputToBottom: Set scrollTop to ${scrollHeight}`);
+    
+    // Double check if the scroll worked
+    requestAnimationFrame(() => {
+        if (Math.abs(outputMessages.scrollTop + outputMessages.clientHeight - outputMessages.scrollHeight) > 5) {
+            console.log('scrollOutputToBottom: First attempt failed, forcing scroll again');
+            outputMessages.scrollTop = outputMessages.scrollHeight;
+        }
+    });
+}
+
+// Function to show the output scroll button
+function showOutputScrollButton() {
+    const scrollBtn = document.getElementById('output-scroll-btn');
+    if (scrollBtn) {
+        scrollBtn.style.display = 'block';
+    }
+}
+
+// Function to hide the output scroll button
+function hideOutputScrollButton() {
+    const scrollBtn = document.getElementById('output-scroll-btn');
+    if (scrollBtn) {
+        scrollBtn.style.display = 'none';
     }
 }
 
@@ -57,19 +175,20 @@ function scrollChatToBottom() {
 const OutputTypes = {
     BOT_PROCESSING: { type: 'bot-processing', emoji: '🤖', label: 'Processing' },
     BOT_PREVIEW: { type: 'bot-preview', emoji: '🐰', label: 'Bot' },
-    INNER_THOUGHTS: { type: 'inner-thoughts', emoji: '💭', label: 'Inner Thoughts' },
+    INNER_THOUGHTS: { type: 'inner-thoughts', emoji: '💭', label: 'Thinking' },
     PREFERENCES: { type: 'preferences', emoji: '💕', label: 'Preferences' },
-    INTERESTS: { type: 'interests', emoji: '📚', label: 'Interests' },
+    INTERESTS: { type: 'interests', emoji: '🎯', label: 'Interests' },
     MOOD: { type: 'mood', emoji: '😊', label: 'Mood' },
-    MEMORIES: { type: 'memories', emoji: '📝', label: 'Memories' },
-    TTS_ON: { type: 'tts-on', emoji: '🔊', label: 'TTS ON' },
-    TTS_OFF: { type: 'tts-off', emoji: '🔇', label: 'TTS OFF' },
-    TTS_PLAYING: { type: 'tts-on', emoji: '🔊', label: 'Playing TTS' },
-    STT_ON: { type: 'stt-on', emoji: '🎙️', label: 'STT ON' },
-    STT_OFF: { type: 'stt-off', emoji: '🎙️', label: 'STT OFF' },
-    STT_TRANSCRIBING: { type: 'stt-on', emoji: '🎙️', label: 'Transcribing audio' },
-    CONTINUATION: { type: 'continuation', emoji: '🔄', label: 'Continuation' },
-    SYSTEM: { type: 'system-output', emoji: '⚙️', label: 'System' }
+    MEMORIES: { type: 'memories', emoji: '🧠', label: 'Memories' },
+    TTS_ON: { type: 'tts-on', emoji: '🔊', label: 'TTS' },
+    TTS_OFF: { type: 'tts-off', emoji: '🔇', label: 'TTS' },
+    TTS_PLAYING: { type: 'tts-playing', emoji: '▶️', label: 'TTS' },
+    TTS_FINISHED: { type: 'tts-finished', emoji: '⏹️', label: 'TTS' },
+    STT_ON: { type: 'stt-on', emoji: '🎤', label: 'STT' },
+    STT_OFF: { type: 'stt-off', emoji: '🎙️', label: 'STT' },
+    STT_TRANSCRIBING: { type: 'stt-transcribing', emoji: '✍️', label: 'STT' },
+    SYSTEM: { type: 'system', emoji: '⚙️', label: 'System' },
+    CONTINUATION: { type: 'continuation', emoji: '↩️', label: 'Continue' }
 };
 
 // Track the last streaming message element
@@ -120,7 +239,20 @@ function addOutputMessage(content, outputType = OutputTypes.SYSTEM, data = null,
     
     // Create a new message div
     const messageDiv = document.createElement('div');
-    messageDiv.className = `output-message ${outputType.type} ${isStreaming ? 'streaming' : ''}`;
+    
+    // Set the appropriate class based on message type
+    let messageClass = 'output-message';
+    if (outputType === OutputTypes.SYSTEM) {
+        messageClass += ' system-output';  // This will apply the light gray background
+    } else if (outputType === OutputTypes.BOT_PREVIEW) {
+        messageClass += ' bot-preview';   // This will apply the light lilac background
+    }
+    
+    if (isStreaming) {
+        messageClass += ' streaming';     // Add streaming class if needed
+    }
+    
+    messageDiv.className = messageClass;
     
     const timestamp = new Date().toLocaleTimeString('en-US', { 
         hour12: false, 
@@ -130,45 +262,42 @@ function addOutputMessage(content, outputType = OutputTypes.SYSTEM, data = null,
         fractionalSecondDigits: 3
     });
     
-    let messageContent = `<span class="emoji">${outputType.emoji}</span>`;
-    messageContent += `<span class="output-label">${outputType.label}:</span> `;
-    messageContent += `<span class="message-content">`;
-    
-    // Format different data types
+    // Format the message content
+    let messageContent = content;
     if (data && typeof data === 'object') {
-        messageContent += formatObjectOutput(data);
-    } else {
-        messageContent += content || JSON.stringify(data, null, 2);
+        try {
+            messageContent = formatObjectOutput(data);
+        } catch (e) {
+            console.error('Error formatting object output:', e);
+            messageContent = JSON.stringify(data, null, 2);
+        }
     }
     
-    messageContent += `</span>`;
-    messageContent += `<span class="timestamp">${timestamp}</span>`;
-    messageDiv.innerHTML = messageContent;
+    // Set the message HTML
+    messageDiv.innerHTML = `
+        <span class="emoji">${outputType.emoji}</span>
+        <span class="output-label">${outputType.label}:</span>
+        <span class="message-content">${messageContent || ''}</span>
+        <span class="timestamp">${timestamp}</span>
+    `;
     
-    // Store scroll state before adding new message
-    const wasScrolledToBottom = isOutputScrolledToBottom();
-    
-    // Add the message to the DOM
+    // Add to the output container
     outputMessages.appendChild(messageDiv);
     
-    console.log('Message added, wasScrolledToBottom:', wasScrolledToBottom);
+    // Auto-scroll if needed
+    if (isOutputScrolledToBottom()) {
+        scrollOutputToBottom();
+    } else {
+        showOutputScrollButton();
+    }
     
     // Update last streaming message reference if this is a streaming message
     if (isStreaming) {
         lastStreamingMessage = messageDiv;
         lastStreamingType = outputType;
     } else {
-        // Clear the last streaming message reference if this is a non-streaming message
         lastStreamingMessage = null;
         lastStreamingType = null;
-    }
-    
-    // Scroll to bottom if we were already at the bottom
-    if (wasScrolledToBottom) {
-        // Use setTimeout to ensure the DOM has updated
-        setTimeout(scrollOutputToBottom, 50);
-    } else {
-        showOutputScrollButton();
     }
     
     return messageDiv;
@@ -206,55 +335,82 @@ function formatObjectOutput(obj) {
 // Output Manager with enhanced functionality
 const OutputManager = {
     // Bot processing and preview
-    botProcessing: (message) => 
-        addOutputMessage(message, OutputTypes.BOT_PROCESSING),
+    botProcessing(message) {
+        addOutputMessage(message, OutputTypes.BOT_PROCESSING);
+    },
     
-    botPreview: (message) => 
-        addOutputMessage(message, OutputTypes.BOT_PREVIEW),
-        
+    botPreview(message) {
+        addOutputMessage(message, OutputTypes.BOT_PREVIEW);
+    },
+    
     // Inner thoughts
-    innerThoughts: (thoughts) => 
-        addOutputMessage(thoughts, OutputTypes.INNER_THOUGHTS, thoughts),
-        
+    innerThoughts(thoughts) {
+        addOutputMessage(thoughts, OutputTypes.INNER_THOUGHTS);
+    },
+    
     // Preferences
-    preferences: (prefs) => 
-        addOutputMessage('Preferences updated', OutputTypes.PREFERENCES, prefs),
-        
+    preferences(prefs) {
+        addOutputMessage(formatObjectOutput(prefs), OutputTypes.PREFERENCES);
+    },
+    
     // Interests
-    interests: (interests) => 
-        addOutputMessage('Interests updated', OutputTypes.INTERESTS, interests),
-        
+    interests(interests) {
+        addOutputMessage(formatObjectOutput(interests), OutputTypes.INTERESTS);
+    },
+    
     // Mood detection
-    mood: (moodData) => 
-        addOutputMessage('Mood detected', OutputTypes.MOOD, moodData),
-        
+    mood(moodData) {
+        addOutputMessage(formatObjectOutput(moodData), OutputTypes.MOOD);
+    },
+    
     // Relevant memories
-    memories: (memories) => 
-        addOutputMessage('Relevant memories', OutputTypes.MEMORIES, memories),
-        
+    memories(memories) {
+        addOutputMessage(formatObjectOutput(memories), OutputTypes.MEMORIES);
+    },
+    
     // TTS events
-    ttsOn: () => 
-        addOutputMessage('Text-to-speech enabled', OutputTypes.TTS_ON),
-    ttsOff: () => 
-        addOutputMessage('Text-to-speech disabled', OutputTypes.TTS_OFF),
-    ttsPlaying: (text) => 
-        addOutputMessage(text || 'Playing audio...', OutputTypes.TTS_PLAYING),
-        
-    // STT events  
-    sttOn: () => 
-        addOutputMessage('Speech recognition enabled', OutputTypes.STT_ON),
-    sttOff: () => 
-        addOutputMessage('Speech recognition disabled', OutputTypes.STT_OFF),
-    sttTranscribing: (status) => 
-        addOutputMessage(status || 'Listening and transcribing...', OutputTypes.STT_TRANSCRIBING),
-        
+    ttsOn() {
+        addOutputMessage('TTS: Text-to-speech enabled', OutputTypes.TTS_ON);
+    },
+    
+    ttsOff() {
+        addOutputMessage('TTS: Text-to-speech disabled', OutputTypes.TTS_OFF);
+    },
+    
+    ttsPlaying(text) {
+        addOutputMessage('TTS: Starting audio playback', OutputTypes.TTS_PLAYING);
+    },
+    
+    ttsFinished() {
+        addOutputMessage('TTS: Playback finished', OutputTypes.TTS_FINISHED);
+    },
+    
+    // STT events
+    sttOn() {
+        addOutputMessage('Speech recognition started', OutputTypes.STT_ON);
+    },
+    
+    sttOff() {
+        addOutputMessage('Speech recognition stopped', OutputTypes.STT_OFF);
+    },
+    
+    sttTranscribing(status) {
+        if (typeof status === 'string') {
+            addOutputMessage(status, OutputTypes.STT_TRANSCRIBING);
+        } else if (status && status.text) {
+            addOutputMessage(`Transcribing: ${status.text}`, OutputTypes.STT_TRANSCRIBING);
+        }
+    },
+    
     // Continuation
-    continuation: (data) => 
-        addOutputMessage('Processing continuation', OutputTypes.CONTINUATION, data),
-        
+    continuation(data) {
+        addOutputMessage('Continuing response...', OutputTypes.CONTINUATION);
+    },
+    
     // System messages
-    system: (message, data) => 
-        addOutputMessage(message, OutputTypes.SYSTEM, data)
+    system(message, data) {
+        addOutputMessage(message, OutputTypes.SYSTEM, data);
+    }
 };
 
 // Initialize with system message
@@ -342,6 +498,9 @@ function processOutputEvent(event) {
         case 'ttsPlaying':
             OutputManager.ttsPlaying(content);
             break;
+        case 'ttsFinished':
+            OutputManager.ttsFinished();
+            break;
         case 'sttOn':
             OutputManager.sttOn();
             break;
@@ -353,6 +512,9 @@ function processOutputEvent(event) {
             break;
         case 'system':
             OutputManager.system(content, data);
+            break;
+        case 'continuation':
+            OutputManager.continuation(content, data);
             break;
         default:
             console.warn('Unknown output event type:', type);
@@ -378,62 +540,6 @@ window.addEventListener('beforeunload', () => {
 
 // Make OutputManager globally available
 window.OutputManager = OutputManager;
-
-// Function to check if the user is scrolled to the bottom of the output panel
-function isOutputScrolledToBottom() {
-    const outputMessages = document.getElementById('output-messages');
-    if (!outputMessages) return true;
-    
-    // Add a small threshold (5px) to account for potential rounding issues
-    const threshold = 5;
-    const isAtBottom = Math.abs(outputMessages.scrollHeight - outputMessages.clientHeight - outputMessages.scrollTop) <= threshold;
-    
-    console.log('isOutputScrolledToBottom:', 
-                `scrollHeight: ${outputMessages.scrollHeight}, ` +
-                `clientHeight: ${outputMessages.clientHeight}, ` +
-                `scrollTop: ${outputMessages.scrollTop}, ` +
-                `isAtBottom: ${isAtBottom}`);
-    
-    return isAtBottom;
-}
-
-// Function to scroll the output panel to the bottom
-function scrollOutputToBottom() {
-    const outputMessages = document.getElementById('output-messages');
-    if (!outputMessages) return;
-    
-    console.log('scrollOutputToBottom: Attempting to scroll...');
-    
-    // Force a reflow before scrolling
-    const scrollHeight = outputMessages.scrollHeight;
-    outputMessages.scrollTop = scrollHeight;
-    
-    console.log(`scrollOutputToBottom: Set scrollTop to ${scrollHeight}`);
-    
-    // Double check if the scroll worked
-    requestAnimationFrame(() => {
-        if (Math.abs(outputMessages.scrollTop + outputMessages.clientHeight - outputMessages.scrollHeight) > 5) {
-            console.log('scrollOutputToBottom: First attempt failed, forcing scroll again');
-            outputMessages.scrollTop = outputMessages.scrollHeight;
-        }
-    });
-}
-
-// Function to show the output scroll button
-function showOutputScrollButton() {
-    const scrollBtn = document.getElementById('output-scroll-btn');
-    if (scrollBtn) {
-        scrollBtn.style.display = 'block';
-    }
-}
-
-// Function to hide the output scroll button
-function hideOutputScrollButton() {
-    const scrollBtn = document.getElementById('output-scroll-btn');
-    if (scrollBtn) {
-        scrollBtn.style.display = 'none';
-    }
-}
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOMContentLoaded event fired');

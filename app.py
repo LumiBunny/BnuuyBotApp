@@ -1,6 +1,7 @@
 from flask import Flask, render_template, jsonify, request, redirect, url_for
 from audio import SpeechToText, TTSEngine
 from chat import BunnyChat, ChatHistory
+from flask_socketio import SocketIO, emit, join_room, leave_room
 import pygame
 import time
 import os
@@ -14,6 +15,7 @@ logging.getLogger('werkzeug').setLevel(logging.ERROR)
 # Initialize Flask app
 app = Flask(__name__)
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Disable caching
+socketio = SocketIO(app, cors_allowed_origins="*")  # Allow cross-origin for development
 
 # Initialize core components
 bunny = BunnyChat()
@@ -41,25 +43,48 @@ is_tts_playing = False  # Track TTS state globally
 
 # Event handlers
 def handle_final_result(text):
+    # Handle final transcription result from STT
     global transcription_history, current_text, message_buffer, is_tts_playing
-    if text:
-        timestamp = time.strftime("%H:%M:%S")
+    
+    if not text:
+        return
         
-        # ALWAYS add to UI history for individual display
-        transcription_history.append({"text": text, "time": timestamp})
-        current_text = text
-        
-        # NEW: Check if TTS is playing and buffer message if needed
-        if is_tts_playing:
-            print(f"TTS is playing, buffering message: {text}")
-            message_buffer.append(text)
-            # Note: Message is displayed in UI but NOT sent to BunnyChat yet
-        else:
-            # Process immediately if TTS is not playing
-            process_message(text)
+    timestamp = time.strftime("%H:%M:%S")
+    
+    # Always update the conversation history and current text
+    transcription_history.append({"text": text, "time": timestamp, "sender": "user"})
+    current_text = text
+    
+    # Emit the user message to the frontend
+    socketio.emit('user_message', {
+        'text': text,
+        'timestamp': timestamp,
+        'sender': 'user'
+    })
+    
+    # Only show transcription message for audio input, not text input
+    if hasattr(handle_final_result, 'is_audio_input') and handle_final_result.is_audio_input:
+        emit_output_event('stt_transcribing', 'Transcribing audio', {
+            'text': text,
+            'timestamp': timestamp
+        })
+    
+    # Reset the flag
+    handle_final_result.is_audio_input = False
+    
+    # Check if TTS is playing and buffer message if needed
+    if is_tts_playing:
+        print(f"TTS is playing, buffering message: {text}")
+        message_buffer.append(text)
+    else:
+        # Process immediately if TTS is not playing
+        process_message(text)
+
+# Initialize the is_audio_input flag as a function attribute
+handle_final_result.is_audio_input = False
 
 def process_message(text):
-    """Process a single message or combined buffered messages"""
+    # Process a single message or combined buffered messages
     print(f"Processing message for BunnyChat: {text}")
     
     # Use the new get_response method signature with message parameter
@@ -77,7 +102,7 @@ def process_message(text):
             tts.start()
 
 def process_buffered_messages():
-    """Process all buffered messages when TTS finishes"""
+    # Process all buffered messages when TTS finishes
     global message_buffer, is_tts_playing
     
     if message_buffer:
@@ -93,16 +118,23 @@ def process_buffered_messages():
     is_tts_playing = False
 
 def on_tts_started():
-    """Called when TTS starts playing"""
+    # Called when TTS starts playing
     global is_tts_playing, message_buffer
     is_tts_playing = True
     message_buffer = []  # Clear any old buffer
-    print("DEBUG: TTS playback started, message buffering enabled (UI still shows individual messages)")
+    emit_output_event('tts_playing', 'TTS started playing')
+    print("DEBUG: TTS playback started, message buffering enabled")
 
 def on_tts_finished():
-    """Called when TTS finishes playing"""
-    print("DEBUG: TTS playback finished, processing buffered messages")
-    process_buffered_messages()
+    # Called when TTS finishes playing
+    global is_tts_playing
+    is_tts_playing = False
+    emit_output_event('tts_off', 'TTS finished')
+    print("DEBUG: TTS playback finished")
+    
+    # Process any buffered messages
+    if message_buffer:
+        process_buffered_messages()
 
 def handle_completion(text):
     global llm_responses
@@ -394,6 +426,33 @@ def reset_application_state():
     current_text = "Waiting for speech..."
     
     print("\n[INFO] Application state reset to defaults")
+    
+@socketio.on('connect')
+def handle_connect(auth=None):
+    print('Client connected')
+    emit('output_event', {
+        'type': 'system',
+        'content': 'Connected to server',
+        'data': {'status': 'connected'}
+    })
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print('Client disconnected')
+    emit('output_event', {
+        'type': 'system',
+        'content': 'Disconnected from server',
+        'data': {'status': 'disconnected'}
+    })
+
+# Helper function to emit output events
+def emit_output_event(event_type, content, data=None):
+    socketio.emit('output_event', {
+        'type': event_type,
+        'content': content,
+        'data': data or {},
+        'timestamp': time.time()
+    })
 
 if __name__ == '__main__':
     print("\n" + "="*50)
@@ -408,4 +467,10 @@ if __name__ == '__main__':
     
     reset_application_state()
     
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    socketio.run(
+        app, 
+        host='0.0.0.0', 
+        port=5000, 
+        debug=False,
+        allow_unsafe_werkzeug=True
+    )

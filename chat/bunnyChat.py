@@ -8,11 +8,14 @@ from thinking.inner_dialogue import InnerDialogue
 import concurrent.futures
 
 class BunnyChat:
-    def __init__(self, model_name="darkidol-llama-3.1-8b-instruct-1.2-uncensored"):
+    def __init__(self, model_name="darkidol-llama-3.1-8b-instruct-1.2-uncensored", output_callback=None):
         print("Initializing model...")
         self.model = lms.llm(model_name)
         print("Model loaded!")
         self.model_name = model_name
+        
+        # Store output callback for emitting events to frontend
+        self.output_callback = output_callback
         
         # Initialize memory and preference systems
         print("Initializing memory systems...")
