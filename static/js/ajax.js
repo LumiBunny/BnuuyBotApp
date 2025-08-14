@@ -12,12 +12,6 @@ function toggleHistoryList() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Set up load history button
-    const loadHistoryBtn = document.querySelector('.btn-load');
-    if (loadHistoryBtn) {
-        loadHistoryBtn.addEventListener('click', toggleHistoryList);
-    }
-    
     // Intercept mic form submission
     const micForm = document.getElementById('mic-form');
     if (micForm) {
@@ -167,261 +161,31 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Handle chat history functionality
-    function toggleHistoryList() {
-        const historyList = document.getElementById('history-list');
-        if (historyList.style.display === 'none') {
-            historyList.style.display = 'block';
-            loadHistoryFiles();
-        } else {
-            historyList.style.display = 'none';
-        }
-    }
-
-    function loadHistoryFiles() {
-        const historyFiles = document.getElementById('history-files');
-        if (!historyFiles) return;
+    // Add this new code to handle the placeholder
+    function clearPlaceholderWhenMessagesExist() {
+        const conversationDiv = document.getElementById('conversation');
+        if (!conversationDiv) return;
         
-        // Show loading state
-        historyFiles.innerHTML = '<p class="loading-text">Loading chat histories...</p>';
-        
-        fetch('/list_histories')
-            .then(response => response.json())
-            .then(data => {
-                if (data.success && data.histories && data.histories.length > 0) {
-                    let html = '<ul class="history-file-list">';
-                    
-                    // Sort by most recent first (assuming filename starts with chat_YYYYMMDD_HHMMSS)
-                    const sortedHistories = [...data.histories].sort().reverse();
-                    
-                    sortedHistories.forEach(file => {
-                        // Extract date/time from filename for display
-                        let displayName = file;
-                        let fileDate = '';
-                        
-                        // Try to extract and format the date from the filename
-                        // Expected format: chat_YYYYMMDD_HHMMSS.json
-                        const match = file.match(/chat_(\d{8})_(\d{6})\.json/);
-                        if (match) {
-                            try {
-                                const dateStr = match[1]; // YYYYMMDD
-                                const timeStr = match[2]; // HHMMSS
-                                const year = dateStr.substring(0, 4);
-                                const month = dateStr.substring(4, 6);
-                                const day = dateStr.substring(6, 8);
-                                const hour = timeStr.substring(0, 2);
-                                const minute = timeStr.substring(2, 4);
-                                
-                                const date = new Date(`${year}-${month}-${day}T${hour}:${minute}:00`);
-                                displayName = date.toLocaleString('en-US', {
-                                    month: 'short',
-                                    day: 'numeric',
-                                    year: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                    hour12: true
-                                });
-                                
-                                fileDate = date.toISOString();
-                            } catch (e) {
-                                console.error('Error parsing date from filename:', e);
-                            }
-                        }
-                        
-                        html += `
-                            <li class="history-file-item" data-filename="${file}" data-date="${fileDate}">
-                                <a href="#" class="history-file-link">
-                                    <i class="fa-regular fa-comment-dots"></i>
-                                    <span class="history-file-name">${displayName}</span>
-                                </a>
-                            </li>`;
-                    });
-                    html += '</ul>';
-                    historyFiles.innerHTML = html;
-                    
-                    // Add click event listeners to all history file links
-                    document.querySelectorAll('.history-file-link').forEach(link => {
-                        link.addEventListener('click', function(e) {
-                            e.preventDefault();
-                            const listItem = this.closest('.history-file-item');
-                            const filename = listItem.getAttribute('data-filename');
-                            loadChatHistory(filename);
-                        });
-                    });
-                } else {
-                    historyFiles.innerHTML = `
-                        <div class="no-history">
-                            <i class="fa-regular fa-folder-open"></i>
-                            <p>No chat histories found.</p>
-                        </div>`;
-                }
-            })
-            .catch(error => {
-                console.error('Error loading history files:', error);
-                if (historyFiles) {
-                    historyFiles.innerHTML = `
-                        <div class="error-message">
-                            <i class="fa-solid fa-exclamation-triangle"></i>
-                            <p>Error loading chat histories. Please try again later.</p>
-                        </div>`;
+        // If there are any messages in the conversation, remove the placeholder
+        if ((conversationDiv.querySelectorAll('.message, .transcript-item, .bunny-item').length > 0) && 
+            conversationDiv.innerHTML.includes('No conversation history yet')) {
+            // Find and remove just the placeholder paragraph
+            const placeholders = conversationDiv.querySelectorAll('p');
+            placeholders.forEach(p => {
+                if (p.textContent.includes('No conversation history yet')) {
+                    p.remove();
                 }
             });
+        }
     }
+    
+    // Run once on page load
+    clearPlaceholderWhenMessagesExist();
+    
+    // Also run whenever new messages might be added
+    setInterval(clearPlaceholderWhenMessagesExist, 1000);
 
-    function loadChatHistory(filename) {
-        console.log('Loading chat history:', filename);
-        
-        // Stop polling to prevent interference with chat bubble display
-        if (pollingInterval) {
-            clearInterval(pollingInterval);
-            pollingInterval = null;
-        }
-        
-        // Hide the history list after selection
-        const historyList = document.getElementById('history-list');
-        if (historyList) {
-            historyList.style.display = 'none';
-        }
-        
-        // Show loading indicator and clear the conversation
-        const conversationDiv = document.getElementById('conversation');
-        if (conversationDiv) {
-            conversationDiv.innerHTML = '<div class="message loading">Loading chat history...</div>';
-        }
-        
-        // Clear the global state to prevent duplicates
-        transcription_history = [];
-        llm_responses = [];
-        
-        // Make an AJAX call to load the chat history
-        fetch('/load_chat_history', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ filename: filename })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Clear the conversation div
-                if (conversationDiv) {
-                    conversationDiv.innerHTML = '';
-                }
-                
-                console.log('Original messages before sorting:', data.messages);
-                
-                const sortedMessages = [...data.messages].sort((a, b) => {
-                    // Parse timestamps safely, default to 0 if invalid
-                    const parseTime = (timestamp) => {
-                        try {
-                            // If timestamp is already a number, return it
-                            if (typeof timestamp === 'number') return timestamp;
-                            // If it's a string, try to parse it
-                            if (typeof timestamp === 'string') {
-                                // Handle ISO format with or without timezone
-                                return new Date(timestamp).getTime() || 0;
-                            }
-                            return 0;
-                        } catch (e) {
-                            console.error('Error parsing timestamp:', e);
-                            return 0;
-                        }
-                    };
-                    
-                    const timeA = parseTime(a.timestamp);
-                    const timeB = parseTime(b.timestamp);
-                    
-                    console.log(`Comparing: ${a.role} (${a.timestamp} = ${timeA}) vs ${b.role} (${b.timestamp} = ${timeB})`);
-                    
-                    return timeA - timeB;
-                });
-                
-                console.log('Messages after sorting:', sortedMessages);
-                
-                // Add each message to the conversation using existing CSS classes
-                if (data.messages && Array.isArray(data.messages)) {
-                    // Create a document fragment for better performance
-                    const fragment = document.createDocumentFragment();
-                    
-                    sortedMessages.forEach(msg => {
-                        if (msg.role === 'user' || msg.role === 'assistant') {
-                            const messageDiv = document.createElement('div');
-                            // Use existing CSS classes that are properly styled
-                            messageDiv.className = msg.role === 'user' ? 'transcript-item' : 'bunny-item';
-                            
-                            // Format timestamp if available
-                            let timestamp = '';
-                            if (msg.timestamp) {
-                                try {
-                                    const date = new Date(msg.timestamp);
-                                    timestamp = date.toLocaleTimeString();
-                                } catch (e) {
-                                    console.error('Error formatting timestamp:', e);
-                                }
-                            }
-                            
-                            // Use the proper HTML structure for existing CSS classes
-                            messageDiv.innerHTML = `
-                                <div class="message-name">${msg.role === 'user' ? 'You' : 'Bunny'}</div>
-                                <div class="${msg.role === 'user' ? 'transcript-content' : 'response-content'}">${msg.content || ''}</div>
-                                ${timestamp ? `<div class="time">${timestamp}</div>` : ''}
-                            `;
-                            
-                            fragment.appendChild(messageDiv);
-                        }
-                    });
-                    
-                    // Append all messages at once for better performance
-                    if (conversationDiv) {
-                        conversationDiv.appendChild(fragment);
-                        
-                        // Scroll to bottom of conversation
-                        conversationDiv.scrollTop = conversationDiv.scrollHeight;
-                        
-                        // Dispatch event that chat history is loaded
-                        const event = new Event('chatHistoryLoaded');
-                        document.dispatchEvent(event);
-                    }
-                    
-                    // Show success message
-                    const statusDiv = document.createElement('div');
-                    statusDiv.className = 'system-message';
-                    statusDiv.textContent = data.message || 'Chat history loaded successfully';
-                    if (conversationDiv) {
-                        conversationDiv.appendChild(statusDiv);
-                        conversationDiv.scrollTop = conversationDiv.scrollHeight;
-                    }
-                    
-                    // Restart polling after chat bubbles are loaded
-                    setTimeout(() => {
-                        startPolling();
-                    }, 1000); // Wait 1 second to ensure chat bubbles are stable
-                }
-            } else {
-                // Show error message
-                const errorDiv = document.createElement('div');
-                errorDiv.className = 'error-message';
-                errorDiv.textContent = data.error || 'Failed to load chat history';
-                if (conversationDiv) {
-                    conversationDiv.innerHTML = '';
-                    conversationDiv.appendChild(errorDiv);
-                }
-            }
-        })
-        .catch(error => {
-            console.error('Error loading chat history:', error);
-            if (conversationDiv) {
-                conversationDiv.innerHTML = `
-                    <div class="error-message">
-                        Error loading chat history: ${error.message}
-                    </div>
-                `;
-            }
-        });
-    }
-
-    // Intercept end chat form submission
+    /// Intercept end chat form submission
     const endChatForm = document.getElementById('end-chat-form');
     if (endChatForm) {
         endChatForm.addEventListener('submit', async function(e) {
@@ -552,6 +316,12 @@ document.addEventListener('DOMContentLoaded', function() {
             // Trigger input event to adjust height
             messageInput.dispatchEvent(new Event('input'));
             
+            // Clear placeholder text immediately when sending a message
+            const conversationDiv = document.getElementById('conversation');
+            if (conversationDiv && conversationDiv.innerHTML.includes('No conversation history yet')) {
+                conversationDiv.innerHTML = '';
+            }
+            
             fetch('/send_text', {
                 method: 'POST',
                 headers: {
@@ -659,8 +429,10 @@ function updateConversation(data) {
     // Check if user was at bottom BEFORE adding new messages
     const wasAtBottom = isScrolledToBottom(conversationDiv);
     
-    // Clear loading message if present
-    if (conversationDiv.innerHTML === '<div class="message loading">Loading chat history...</div>') {
+    // More robust check for placeholder text
+    if (conversationDiv.innerHTML.trim() === '<p>No conversation history yet. Start speaking to begin.</p>' || 
+        conversationDiv.innerHTML.includes('No conversation history yet') ||
+        conversationDiv.innerHTML === '<div class="message loading">Loading chat history...</div>') {
         conversationDiv.innerHTML = '';
     }
     
@@ -760,83 +532,245 @@ function formatTime(date) {
     return date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit', hour12: false});
 }
 
-    // Helper function to check if a message is already displayed
-    function isMessageDisplayed(type, text) {
-        const conversationDiv = document.getElementById('conversation');
-        if (!conversationDiv) return false;
+// Helper function to check if a message is already displayed
+function isMessageDisplayed(type, text) {
+    const conversationDiv = document.getElementById('conversation');
+    if (!conversationDiv) return false;
+    
+    // Check for both formats: plain text (transcript-item/bunny-item) and chat bubbles (message)
+    const plainTextSelector = type === 'user' ? '.transcript-item' : '.bunny-item';
+    const chatBubbleSelector = type === 'user' ? '.message.user' : '.message.assistant';
+    
+    // Check plain text format first
+    const plainTextMessages = conversationDiv.querySelectorAll(plainTextSelector);
+    for (let i = 0; i < plainTextMessages.length; i++) {
+        let content;
+        if (type === 'user') {
+            content = plainTextMessages[i].querySelector('.transcript-content');
+        } else {
+            content = plainTextMessages[i].querySelector('.response-content');
+        }
         
-        // Check for both formats: plain text (transcript-item/bunny-item) and chat bubbles (message)
-        const plainTextSelector = type === 'user' ? '.transcript-item' : '.bunny-item';
-        const chatBubbleSelector = type === 'user' ? '.message.user' : '.message.assistant';
+        if (content && content.textContent.trim() === text.trim()) {
+            return true;
+        }
+    }
+    
+    // Check chat bubble format (from loaded history) to prevent duplicates
+    const chatBubbleMessages = conversationDiv.querySelectorAll(chatBubbleSelector);
+    for (let i = 0; i < chatBubbleMessages.length; i++) {
+        const content = chatBubbleMessages[i].querySelector('.message-content');
+        if (content && content.textContent.trim() === text.trim()) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+// Helper function to check if scrolled to bottom
+function isScrolledToBottom(element) {
+    return Math.abs(element.scrollHeight - element.clientHeight - element.scrollTop) < 10;
+}
+
+// Update mic status based on server state
+function updateMicStatus(isListening) {
+    const micForm = document.getElementById('mic-form');
+    if (!micForm) return;
+    
+    // Only update if the current state doesn't match
+    const currentAction = micForm.getAttribute('action');
+    const shouldBeListening = currentAction.includes('stop_listening');
+    
+    if (isListening !== shouldBeListening) {
+        // Update the form action
+        micForm.setAttribute('action', isListening ? '/stop_listening' : '/start_listening');
         
-        // Check plain text format first
-        const plainTextMessages = conversationDiv.querySelectorAll(plainTextSelector);
-        for (let i = 0; i < plainTextMessages.length; i++) {
-            let content;
-            if (type === 'user') {
-                content = plainTextMessages[i].querySelector('.transcript-content');
+        // Update the button
+        const button = micForm.querySelector('button');
+        if (button) {
+            button.title = isListening ? 'Stop listening' : 'Start listening';
+            button.className = `icon-button ${isListening ? 'btn-mic-on' : 'btn-mic-off'}`;
+            
+            // Update the icon
+            const icon = button.querySelector('i');
+            if (icon) {
+                icon.className = `fa-solid ${isListening ? 'fa-microphone' : 'fa-microphone-slash'}`;
+            }
+        }
+        
+        // Update status indicator
+        const statusIndicator = document.querySelector('.status-indicator');
+        if (statusIndicator) {
+            statusIndicator.className = `status-indicator ${isListening ? 'status-active' : 'status-inactive'}`;
+            
+            // Update the text next to the indicator
+            const statusText = statusIndicator.nextElementSibling;
+            if (statusText) {
+                statusText.textContent = isListening ? 'Active' : 'Inactive';
+            }
+        }
+    }
+}
+
+// Add this function if it doesn't exist
+function updateScrollButtonVisibility() {
+    const scrollButton = document.getElementById('scroll-to-bottom');
+    if (!scrollButton) return;
+    
+    const conversationDiv = document.getElementById('conversation');
+    if (!conversationDiv) return;
+    
+    // Show button only if not at bottom and there's enough content to scroll
+    if (!isScrolledToBottom(conversationDiv) && 
+        conversationDiv.scrollHeight > conversationDiv.clientHeight) {
+        scrollButton.style.display = 'block';
+    } else {
+        scrollButton.style.display = 'none';
+    }
+}
+
+// Function to load history files
+function loadHistoryFiles() {
+    fetch('/get_history_files')
+        .then(response => response.json())
+        .then(data => {
+            const historyList = document.getElementById('history-list');
+            if (!historyList) return;
+            
+            // Clear existing items
+            historyList.innerHTML = '';
+            
+            if (data.files && data.files.length > 0) {
+                // Sort files by date (newest first)
+                data.files.sort((a, b) => {
+                    return new Date(b.date) - new Date(a.date);
+                });
+                
+                // Add each file to the list
+                data.files.forEach(file => {
+                    const listItem = document.createElement('div');
+                    listItem.className = 'history-item';
+                    
+                    // Format the date for display
+                    const fileDate = new Date(file.date);
+                    const formattedDate = fileDate.toLocaleDateString() + ' ' + 
+                                        fileDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    
+                    listItem.innerHTML = `
+                        <span class="history-date">${formattedDate}</span>
+                        <span class="history-actions">
+                            <button class="history-load" data-filename="${file.filename}" title="Load this conversation">
+                                <i class="fa-solid fa-folder-open"></i>
+                            </button>
+                            <button class="history-delete" data-filename="${file.filename}" title="Delete this conversation">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </span>
+                    `;
+                    
+                    historyList.appendChild(listItem);
+                });
+                
+                // Add event listeners to the load buttons
+                document.querySelectorAll('.history-load').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const filename = this.getAttribute('data-filename');
+                        loadHistoryFile(filename);
+                    });
+                });
+                
+                // Add event listeners to the delete buttons
+                document.querySelectorAll('.history-delete').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const filename = this.getAttribute('data-filename');
+                        if (confirm('Are you sure you want to delete this conversation? This cannot be undone.')) {
+                            deleteHistoryFile(filename);
+                        }
+                    });
+                });
             } else {
-                content = plainTextMessages[i].querySelector('.response-content');
+                // No history files
+                historyList.innerHTML = '<div class="no-history">No conversation history found.</div>';
             }
-            
-            if (content && content.textContent.trim() === text.trim()) {
-                return true;
+        })
+        .catch(error => {
+            console.error('Error loading history files:', error);
+            const historyList = document.getElementById('history-list');
+            if (historyList) {
+                historyList.innerHTML = '<div class="error">Error loading history files.</div>';
             }
-        }
-        
-        // Check chat bubble format (from loaded history) to prevent duplicates
-        const chatBubbleMessages = conversationDiv.querySelectorAll(chatBubbleSelector);
-        for (let i = 0; i < chatBubbleMessages.length; i++) {
-            const content = chatBubbleMessages[i].querySelector('.message-content');
-            if (content && content.textContent.trim() === text.trim()) {
-                return true;
-            }
-        }
-        
-        return false;
-    }
+        });
+}
 
-    // Helper function to check if scrolled to bottom
-    function isScrolledToBottom(element) {
-        return Math.abs(element.scrollHeight - element.clientHeight - element.scrollTop) < 10;
+// Function to load a specific history file
+function loadHistoryFile(filename) {
+    // Show loading state in the conversation area
+    const conversationDiv = document.getElementById('conversation');
+    if (conversationDiv) {
+        conversationDiv.innerHTML = '<div class="message loading">Loading chat history...</div>';
     }
+    
+    // Hide the history list
+    const historyList = document.getElementById('history-list');
+    if (historyList) {
+        historyList.style.display = 'none';
+    }
+    
+    fetch(`/load_history/${filename}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.messages) {
+                // Clear the conversation div
+                conversationDiv.innerHTML = '';
+                
+                // Add each message to the conversation
+                data.messages.forEach(msg => {
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = `message ${msg.role}`;
+                    
+                    messageDiv.innerHTML = `
+                        <div class="message-header">
+                            <div class="message-name">${msg.role === 'user' ? 'You' : 'Bunny'}</div>
+                            <div class="message-time">${formatTime(new Date(msg.timestamp))}</div>
+                        </div>
+                        <div class="message-content">${msg.content}</div>
+                    `;
+                    
+                    conversationDiv.appendChild(messageDiv);
+                });
+                
+                // Scroll to bottom
+                conversationDiv.scrollTop = conversationDiv.scrollHeight;
+            } else {
+                // Show error
+                conversationDiv.innerHTML = '<div class="error-message">Failed to load conversation history.</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading history file:', error);
+            if (conversationDiv) {
+                conversationDiv.innerHTML = '<div class="error-message">Error loading conversation history.</div>';
+            }
+        });
+}
 
-    // Update mic status based on server state
-    function updateMicStatus(isListening) {
-        const micForm = document.getElementById('mic-form');
-        if (!micForm) return;
-        
-        // Only update if the current state doesn't match
-        const currentAction = micForm.getAttribute('action');
-        const shouldBeListening = currentAction.includes('stop_listening');
-        
-        if (isListening !== shouldBeListening) {
-            // Update the form action
-            micForm.setAttribute('action', isListening ? '/stop_listening' : '/start_listening');
-            
-            // Update the button
-            const button = micForm.querySelector('button');
-            if (button) {
-                button.title = isListening ? 'Stop listening' : 'Start listening';
-                button.className = `icon-button ${isListening ? 'btn-mic-on' : 'btn-mic-off'}`;
-                
-                // Update the icon
-                const icon = button.querySelector('i');
-                if (icon) {
-                    icon.className = `fa-solid ${isListening ? 'fa-microphone' : 'fa-microphone-slash'}`;
-                }
+// Function to delete a history file
+function deleteHistoryFile(filename) {
+    fetch(`/delete_history/${filename}`, {
+        method: 'DELETE'
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Reload the history list
+                loadHistoryFiles();
+            } else {
+                alert('Failed to delete file: ' + (data.message || 'Unknown error'));
             }
-            
-            // Update status indicator
-            const statusIndicator = document.querySelector('.status-indicator');
-            if (statusIndicator) {
-                statusIndicator.className = `status-indicator ${isListening ? 'status-active' : 'status-inactive'}`;
-                
-                // Update the text next to the indicator
-                const statusText = statusIndicator.nextElementSibling;
-                if (statusText) {
-                    statusText.textContent = isListening ? 'Active' : 'Inactive';
-                }
-            }
-        }
-    }
+        })
+        .catch(error => {
+            console.error('Error deleting history file:', error);
+            alert('Error deleting file. Please try again.');
+        });
+}
