@@ -139,7 +139,7 @@ function hideOutputScrollButton() {
 
 // Output Message Types with Emojis
 const OutputTypes = {
-    botProcessing: { type: 'botProcessing', emoji: '🤖', label: 'Processing' },
+    botProcessing: { type: 'botProcessing', emoji: '🤖', label: 'Processing message' },
     botPreview: { type: 'botPreview', emoji: '🐰', label: 'Bot' },
     innerThoughts: { type: 'innerThoughts', emoji: '💭', label: 'Thinking' },
     preferences: { type: 'preferences', emoji: '💕', label: 'Preferences' },

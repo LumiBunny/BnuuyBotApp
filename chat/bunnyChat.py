@@ -387,7 +387,7 @@ class BunnyChat:
     
     def get_response(self, message, user_id="lumi"):
         # Enhanced response generation with realistic thinking integration.
-        processing_msg = f"🤖 Processing message: {message[:50]}{'...' if len(message) > 50 else ''}"
+        processing_msg = f"{message[:50]}{'...' if len(message) > 50 else ''}"
         print(f"\n{processing_msg}")
         
         # Send processing message to UI using the same format as terminal
