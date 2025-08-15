@@ -514,21 +514,26 @@ function updateConversation(data) {
         // Append all new messages at once
         conversationDiv.appendChild(fragment);
         
-        // Conditional auto-scroll logic:
-        // Only scroll to bottom if user was already at the bottom before new messages
+        // Only auto-scroll if user was already at bottom
         if (wasAtBottom) {
-            // Use setTimeout to ensure DOM has updated before scrolling
-            setTimeout(() => {
+            // Use requestAnimationFrame for smoother scrolling
+            requestAnimationFrame(() => {
                 conversationDiv.scrollTop = conversationDiv.scrollHeight;
-                console.log('Auto-scrolled to bottom (user was at bottom)');
-            }, 10);
+                // Update scroll button visibility after scrolling
+                updateScrollButtonVisibility();
+            });
         } else {
-            console.log('User not at bottom, skipping auto-scroll');
+            // Show scroll button if not at bottom
+            updateScrollButtonVisibility();
         }
-        
-        // Update scroll button visibility
-        updateScrollButtonVisibility();
     }
+}
+
+// Update the scroll threshold to be consistent (5px)
+function isScrolledToBottom(element) {
+    if (!element) return true;
+    const threshold = 5; // pixels from bottom
+    return Math.abs(element.scrollHeight - element.clientHeight - element.scrollTop) <= threshold;
 }
 
 // Helper function to parse time string (HH:MM:SS) to timestamp
@@ -588,7 +593,9 @@ function isMessageDisplayed(type, text) {
 
 // Helper function to check if scrolled to bottom
 function isScrolledToBottom(element) {
-    return Math.abs(element.scrollHeight - element.clientHeight - element.scrollTop) < 10;
+    if (!element) return true;
+    const threshold = 5; // pixels from bottom
+    return Math.abs(element.scrollHeight - element.clientHeight - element.scrollTop) <= threshold;
 }
 
 // Update mic status based on server state

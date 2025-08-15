@@ -201,7 +201,7 @@ class BunnyChat:
                 print(f"💭 Inner thought: {inner_thought}")
                 # Emit to frontend if callback is available
                 if self.output_callback:
-                    self.output_callback('inner_thoughts', f"💭 Inner thought: {inner_thought}")
+                    self.output_callback('inner-thoughts', f"💭 Inner thought: {inner_thought}")
             
         except Exception as e:
             print(f"Error processing memories/mood/inner thoughts: {e}")
@@ -387,7 +387,12 @@ class BunnyChat:
     
     def get_response(self, message, user_id="lumi"):
         # Enhanced response generation with realistic thinking integration.
-        print(f"\n🤖 Processing message: {message[:50]}...")
+        processing_msg = f"🤖 Processing message: {message[:50]}{'...' if len(message) > 50 else ''}"
+        print(f"\n{processing_msg}")
+        
+        # Send processing message to UI using the same format as terminal
+        if self.output_callback:
+            self.output_callback('botProcessing', processing_msg, {})
         
         # Check if this is a continuation request
         is_continue_request = self._is_continue_request(message)

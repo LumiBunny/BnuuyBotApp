@@ -131,14 +131,14 @@ def on_tts_started():
     global is_tts_playing, message_buffer
     is_tts_playing = True
     message_buffer = []  # Clear any old buffer
-    emit_output_event('tts_playing', 'TTS started playing')
+    emit_output_event('ttsPlaying', 'TTS started playing')
     print("DEBUG: TTS playback started, message buffering enabled")
 
 def on_tts_finished():
     # Called when TTS finishes playing
     global is_tts_playing
     is_tts_playing = False
-    emit_output_event('tts_off', 'TTS finished')
+    emit_output_event('ttsOff', 'TTS finished')
     print("DEBUG: TTS playback finished")
     
     # Process any buffered messages
@@ -377,9 +377,9 @@ def toggle_tts():
         
         # Emit system output event for TTS toggle
         if tts_enabled:
-            emit_output_event('tts_on', f'TTS: Text-to-speech enabled')
+            emit_output_event('ttsOn', f'TTS: Text-to-speech enabled')
         else:
-            emit_output_event('tts_off_manual', f'TTS: Text-to-speech disabled manually')
+            emit_output_event('ttsOffManual', f'TTS: Text-to-speech disabled manually')
         
         return jsonify({
             "success": True,

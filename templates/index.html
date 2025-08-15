@@ -132,6 +132,9 @@
                         <p>No conversation history yet. Start speaking to begin.</p>
                     {% endif %}
                 </div>
+                <button id="scroll-to-bottom-conversation-btn" class="scroll-to-bottom-conversation-btn">
+                    <i class="fa-solid fa-arrow-down"></i>
+                </button>
                 <div class="text-input-container">
                     <form id="text-message-form" action="/send_text" method="post">
                         <textarea id="message_text" name="message_text" placeholder="Type a message..." rows="1"></textarea>
@@ -160,7 +163,7 @@
                         <!-- Output messages will appear here -->
                     </div>
                     <button id="output-scroll-btn" class="scroll-to-bottom-btn" style="display: none;">
-                        ↓
+                        <i class="fa-solid fa-arrow-down"></i>
                     </button>
                 </div>
             </div>

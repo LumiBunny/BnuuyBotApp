@@ -102,38 +102,22 @@ function isOutputScrolledToBottom() {
     const outputMessages = document.getElementById('output-messages');
     if (!outputMessages) return true;
     
-    // Add a small threshold (5px) to account for potential rounding issues
-    const threshold = 5;
+    const threshold = 10; // Consistent with conversation panel
     const isAtBottom = Math.abs(outputMessages.scrollHeight - outputMessages.clientHeight - outputMessages.scrollTop) <= threshold;
-    
-    console.log('isOutputScrolledToBottom:', 
-                `scrollHeight: ${outputMessages.scrollHeight}, ` +
-                `clientHeight: ${outputMessages.clientHeight}, ` +
-                `scrollTop: ${outputMessages.scrollTop}, ` +
-                `isAtBottom: ${isAtBottom}`);
     
     return isAtBottom;
 }
 
-// Function to scroll the output panel to the bottom
+// Function to scroll the output panel to bottom
 function scrollOutputToBottom() {
     const outputMessages = document.getElementById('output-messages');
     if (!outputMessages) return;
     
-    console.log('scrollOutputToBottom: Attempting to scroll...');
-    
-    // Force a reflow before scrolling
-    const scrollHeight = outputMessages.scrollHeight;
-    outputMessages.scrollTop = scrollHeight;
-    
-    console.log(`scrollOutputToBottom: Set scrollTop to ${scrollHeight}`);
-    
-    // Double check if the scroll worked
+    // Use requestAnimationFrame for smoother scrolling
     requestAnimationFrame(() => {
-        if (Math.abs(outputMessages.scrollTop + outputMessages.clientHeight - outputMessages.scrollHeight) > 5) {
-            console.log('scrollOutputToBottom: First attempt failed, forcing scroll again');
-            outputMessages.scrollTop = outputMessages.scrollHeight;
-        }
+        outputMessages.scrollTop = outputMessages.scrollHeight;
+        // Hide scroll button after scrolling
+        hideOutputScrollButton();
     });
 }
 
@@ -155,23 +139,23 @@ function hideOutputScrollButton() {
 
 // Output Message Types with Emojis
 const OutputTypes = {
-    BOT_PROCESSING: { type: 'bot-processing', emoji: '🤖', label: 'Processing' },
-    BOT_PREVIEW: { type: 'bot-preview', emoji: '🐰', label: 'Bot' },
-    INNER_THOUGHTS: { type: 'inner-thoughts', emoji: '💭', label: 'Thinking' },
-    PREFERENCES: { type: 'preferences', emoji: '💕', label: 'Preferences' },
-    INTERESTS: { type: 'interests', emoji: '🎯', label: 'Interests' },
-    MOOD: { type: 'mood', emoji: '😊', label: 'Mood' },
-    MEMORIES: { type: 'memories', emoji: '🧠', label: 'Memories' },
-    TTS_ON: { type: 'tts-on', emoji: '🔊', label: 'TTS' },
-    TTS_OFF_MANUAL: { type: 'tts-off-manual', emoji: '🔇', label: 'TTS' },
-    TTS_OFF_PLAYBACK_FINISHED: { type: 'tts-off-playback-finished', emoji: '⏹️', label: 'TTS' },
-    TTS_PLAYING: { type: 'tts-playing', emoji: '▶️', label: 'TTS' },
-    TTS_FINISHED: { type: 'tts-finished', emoji: '⏹️', label: 'TTS' },
-    STT_ON: { type: 'stt-on', emoji: '🎤', label: 'STT' },
-    STT_OFF: { type: 'stt-off', emoji: '🎙️', label: 'STT' },
-    STT_TRANSCRIBING: { type: 'stt-transcribing', emoji: '✍️', label: 'STT' },
-    SYSTEM: { type: 'system', emoji: '⚙️', label: 'System' },
-    CONTINUATION: { type: 'continuation', emoji: '↩️', label: 'Continue' }
+    botProcessing: { type: 'botProcessing', emoji: '🤖', label: 'Processing' },
+    botPreview: { type: 'botPreview', emoji: '🐰', label: 'Bot' },
+    innerThoughts: { type: 'innerThoughts', emoji: '💭', label: 'Thinking' },
+    preferences: { type: 'preferences', emoji: '💕', label: 'Preferences' },
+    interests: { type: 'interests', emoji: '📚', label: 'Interests' },
+    mood: { type: 'mood', emoji: '😊', label: 'Mood' },
+    memories: { type: 'memories', emoji: '🧠', label: 'Memories' },
+    ttsOn: { type: 'ttsOn', emoji: '🔊', label: 'TTS On' },
+    ttsOffManual: { type: 'ttsOffManual', emoji: '🔇', label: 'TTS Off' },
+    ttsOffPlaybackFinished: { type: 'ttsOffPlaybackFinished', emoji: '🔉', label: 'TTS Finished' },
+    ttsPlaying: { type: 'ttsPlaying', emoji: '🔊', label: 'TTS Playing' },
+    ttsFinished: { type: 'ttsFinished', emoji: '🔉', label: 'TTS Finished' },
+    sttOn: { type: 'sttOn', emoji: '🎤', label: 'Listening' },
+    sttOff: { type: 'sttOff', emoji: '🎧', label: 'Not Listening' },
+    sttTranscribing: { type: 'sttTranscribing', emoji: '✍️', label: 'Transcribing' },
+    continuation: { type: 'continuation', emoji: '⏭️', label: 'Continuing' },
+    system: { type: 'system', emoji: '⚙️', label: 'System' }
 };
 
 // Track the last streaming message element
@@ -179,7 +163,7 @@ let lastStreamingMessage = null;
 let lastStreamingType = null;
 
 // Enhanced Output Panel Functions
-function addOutputMessage(content, outputType = OutputTypes.SYSTEM, data = null, isStreaming = false) {
+function addOutputMessage(content, outputType = OutputTypes.system, data = null, isStreaming = false) {
     console.log('Adding output message:', { 
         content, 
         outputType, 
@@ -191,6 +175,9 @@ function addOutputMessage(content, outputType = OutputTypes.SYSTEM, data = null,
         console.error('Output messages container not found');
         return null;
     }
+    
+    // Check if user is at bottom before adding new messages
+    const wasAtBottom = isOutputScrolledToBottom();
     
     console.log(`Adding ${isStreaming ? 'streaming ' : ''}${outputType.label} message:`, content || data);
     
@@ -215,8 +202,8 @@ function addOutputMessage(content, outputType = OutputTypes.SYSTEM, data = null,
                 });
             }
             
-            // Auto-scroll if needed
-            if (isOutputScrolledToBottom()) {
+            // Auto-scroll if user was at bottom
+            if (wasAtBottom) {
                 scrollOutputToBottom();
             } else {
                 showOutputScrollButton();
@@ -231,14 +218,14 @@ function addOutputMessage(content, outputType = OutputTypes.SYSTEM, data = null,
     
     // Set the appropriate class based on message type
     let messageClass = 'output-message';
-    if (outputType === OutputTypes.SYSTEM) {
-        messageClass += ' system-output';  // This will apply the light gray background
-    } else if (outputType === OutputTypes.BOT_PREVIEW) {
-        messageClass += ' bot-preview';   // This will apply the light lilac background
+    if (outputType === OutputTypes.system) {
+        messageClass += ' system-output';
+    } else if (outputType === OutputTypes.botPreview) {
+        messageClass += ' bot-preview';
     }
     
     if (isStreaming) {
-        messageClass += ' streaming';     // Add streaming class if needed
+        messageClass += ' streaming';
     }
     
     messageDiv.className = messageClass;
@@ -273,8 +260,8 @@ function addOutputMessage(content, outputType = OutputTypes.SYSTEM, data = null,
     // Add to the output container
     outputMessages.appendChild(messageDiv);
     
-    // Auto-scroll if needed
-    if (isOutputScrolledToBottom()) {
+    // Auto-scroll if user was at bottom, otherwise show scroll button
+    if (wasAtBottom) {
         scrollOutputToBottom();
     } else {
         showOutputScrollButton();
@@ -325,84 +312,84 @@ function formatObjectOutput(obj) {
 const OutputManager = {
     // Bot processing and preview
     botProcessing(message) {
-        addOutputMessage(message, OutputTypes.BOT_PROCESSING);
+        addOutputMessage(message, OutputTypes.botProcessing);
     },
     
     botPreview(message) {
-        addOutputMessage(message, OutputTypes.BOT_PREVIEW);
+        addOutputMessage(message, OutputTypes.botPreview);
     },
     
     // Inner thoughts
     innerThoughts(thoughts) {
-        addOutputMessage(thoughts, OutputTypes.INNER_THOUGHTS);
+        addOutputMessage(thoughts, OutputTypes.innerThoughts);
     },
     
     // Preferences
     preferences(prefs) {
-        addOutputMessage(formatObjectOutput(prefs), OutputTypes.PREFERENCES);
+        addOutputMessage(formatObjectOutput(prefs), OutputTypes.preferences);
     },
     
     // Interests
     interests(interests) {
-        addOutputMessage(formatObjectOutput(interests), OutputTypes.INTERESTS);
+        addOutputMessage(formatObjectOutput(interests), OutputTypes.interests);
     },
     
     // Mood detection
     mood(moodData) {
-        addOutputMessage(formatObjectOutput(moodData), OutputTypes.MOOD);
+        addOutputMessage(formatObjectOutput(moodData), OutputTypes.mood);
     },
     
     // Relevant memories
     memories(memories) {
-        addOutputMessage(formatObjectOutput(memories), OutputTypes.MEMORIES);
+        addOutputMessage(formatObjectOutput(memories), OutputTypes.memories);
     },
     
     // TTS events
     ttsOn() {
-        addOutputMessage('TTS: Text-to-speech enabled', OutputTypes.TTS_ON);
+        addOutputMessage('TTS: Text-to-speech enabled', OutputTypes.ttsOn);
     },
     
     ttsOffManual() {
-        addOutputMessage('TTS: Text-to-speech disabled manually', OutputTypes.TTS_OFF_MANUAL);
+        addOutputMessage('TTS: Text-to-speech disabled manually', OutputTypes.ttsOffManual);
     },
     
     ttsOffPlaybackFinished() {
-        addOutputMessage('TTS: Playback finished', OutputTypes.TTS_OFF_PLAYBACK_FINISHED);
+        addOutputMessage('TTS: Playback finished', OutputTypes.ttsOffPlaybackFinished);
     },
     
     ttsPlaying(text) {
-        addOutputMessage('TTS: Starting audio playback', OutputTypes.TTS_PLAYING);
+        addOutputMessage('TTS: Starting audio playback', OutputTypes.ttsPlaying);
     },
     
     ttsFinished() {
-        addOutputMessage('TTS: Playback finished', OutputTypes.TTS_FINISHED);
+        addOutputMessage('TTS: Playback finished', OutputTypes.ttsFinished);
     },
     
     // STT events
     sttOn() {
-        addOutputMessage('Speech recognition started', OutputTypes.STT_ON);
+        addOutputMessage('Speech recognition started', OutputTypes.sttOn);
     },
     
     sttOff() {
-        addOutputMessage('Speech recognition stopped', OutputTypes.STT_OFF);
+        addOutputMessage('Speech recognition stopped', OutputTypes.sttOff);
     },
     
     sttTranscribing(status) {
         if (typeof status === 'string') {
-            addOutputMessage(status, OutputTypes.STT_TRANSCRIBING);
+            addOutputMessage(status, OutputTypes.sttTranscribing);
         } else if (status && status.text) {
-            addOutputMessage(`Transcribing: ${status.text}`, OutputTypes.STT_TRANSCRIBING);
+            addOutputMessage(`Transcribing: ${status.text}`, OutputTypes.sttTranscribing);
         }
     },
     
     // Continuation
     continuation(data) {
-        addOutputMessage('Continuing response...', OutputTypes.CONTINUATION);
+        addOutputMessage('Continuing response...', OutputTypes.continuation);
     },
     
     // System messages
     system(message, data) {
-        addOutputMessage(message, OutputTypes.SYSTEM, data);
+        addOutputMessage(message, OutputTypes.system, data);
     }
 };
 
@@ -429,7 +416,7 @@ function setupOutputPanel() {
 // Output Events Polling System
 let outputPollingInterval = null;
 
-
+// Stop polling when page unloads
 function stopOutputPolling() {
     if (outputPollingInterval) {
         clearInterval(outputPollingInterval);
@@ -447,7 +434,7 @@ function processOutputEvent(event) {
             break;
         case 'botPreview':
             // Pass the isStreaming flag to the output message
-            addOutputMessage(content, OutputTypes.BOT_PREVIEW, data, isStreaming);
+            addOutputMessage(content, OutputTypes.botPreview, data, isStreaming);
             break;
         case 'innerThoughts':
             OutputManager.innerThoughts(content, data);
@@ -550,7 +537,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (isScrolledToBottom(conversationDiv)) {
                 scrollButton.style.display = 'none';
             } else {
-                scrollButton.style.display = 'block';
+                scrollButton.style.display = 'flex';
             }
         });
     }
@@ -558,6 +545,60 @@ document.addEventListener('DOMContentLoaded', function() {
     // Setup output panel
     setupOutputPanel();
 });
+
+// Create scroll-to-bottom button
+function createScrollButton(container) {
+    // Create button element
+    const button = document.createElement('button');
+    button.id = 'scroll-to-bottom';
+    button.title = 'Scroll to bottom';
+    button.innerHTML = '▼';
+    button.style.display = 'none';
+    
+    // Hover effects
+    button.addEventListener('mouseover', () => {
+        button.style.backgroundColor = '#5a3a8a';
+        button.style.transform = 'scale(1.1)';
+    });
+    
+    button.addEventListener('mouseout', () => {
+        button.style.backgroundColor = '#6e48aa';
+        button.style.transform = 'scale(1)';
+    });
+    
+    // Add click handler
+    button.addEventListener('click', () => {
+        scrollChatToBottom();
+    });
+    
+    // Add scroll event listener to show/hide button
+    const updateButtonVisibility = () => {
+        const atBottom = isScrolledToBottom(container);
+        button.style.display = atBottom ? 'none' : 'flex';
+    };
+    
+    container.addEventListener('scroll', updateButtonVisibility);
+    
+    // Add button to the container
+    container.style.position = 'relative';
+    container.appendChild(button);
+    
+    // Initial check after a small delay
+    setTimeout(updateButtonVisibility, 100);
+    
+    // Also check on window resize
+    window.addEventListener('resize', updateButtonVisibility);
+    
+    return button;
+}
+
+// Function to scroll chat to bottom
+function scrollChatToBottom() {
+    const conversationDiv = document.getElementById('conversation');
+    if (conversationDiv) {
+        conversationDiv.scrollTop = conversationDiv.scrollHeight;
+    }
+}
 
 // Auto-expanding textarea
 document.addEventListener('DOMContentLoaded', function() {
@@ -674,3 +715,78 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('Error sending system message:', error);
     });
 } */
+
+// Function to check if the conversation is scrolled to bottom
+function isConversationScrolledToBottom(conversationDiv) {
+    if (!conversationDiv) return true;
+    const threshold = 10; // pixels from bottom
+    return Math.abs(conversationDiv.scrollHeight - conversationDiv.clientHeight - conversationDiv.scrollTop) <= threshold;
+}
+
+// Function to update conversation scroll button visibility
+function updateConversationScrollButton() {
+    const conversationDiv = document.getElementById('conversation');
+    const scrollButton = document.getElementById('scroll-to-bottom-conversation-btn');
+    
+    if (!conversationDiv || !scrollButton) return;
+    
+    if (isConversationScrolledToBottom(conversationDiv)) {
+        scrollButton.classList.remove('visible');
+    } else {
+        scrollButton.classList.add('visible');
+    }
+}
+
+// Function to scroll conversation to bottom
+function scrollConversationToBottom() {
+    const conversationDiv = document.getElementById('conversation');
+    if (conversationDiv) {
+        conversationDiv.scrollTop = conversationDiv.scrollHeight;
+        updateConversationScrollButton();
+    }
+}
+
+// Add scroll event listener for conversation
+function setupConversationScroll() {
+    const conversationDiv = document.getElementById('conversation');
+    const scrollButton = document.getElementById('scroll-to-bottom-conversation-btn');
+    
+    if (!conversationDiv || !scrollButton) return;
+    
+    // Handle scroll events on conversation
+    conversationDiv.addEventListener('scroll', updateConversationScrollButton);
+    
+    // Handle click on scroll button
+    scrollButton.addEventListener('click', scrollConversationToBottom);
+    
+    // Initial check
+    updateConversationScrollButton();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOMContentLoaded event fired');
+    
+    // Existing code...
+    const conversationDiv = document.getElementById('conversation');
+    
+    // Setup conversation scroll functionality
+    setupConversationScroll();
+    
+    // Initial scroll to bottom
+    scrollConversationToBottom();
+    
+    // Scroll again after a short delay to catch any dynamically loaded content
+    setTimeout(scrollConversationToBottom, 300);
+    
+    // Rest of your existing code...
+    
+    // Update the existing scroll event listener to use our new function
+    if (conversationDiv) {
+        conversationDiv.addEventListener('scroll', updateConversationScrollButton);
+    }
+});
+
+// Update the existing scrollChatToBottom function to use our new function
+function scrollChatToBottom() {
+    scrollConversationToBottom();
+}
