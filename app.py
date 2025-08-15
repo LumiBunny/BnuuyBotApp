@@ -376,10 +376,10 @@ def toggle_tts():
         print(f"\n[INFO] TTS {status}")
         
         # Emit system output event for TTS toggle
-        if tts_enabled:
-            emit_output_event('ttsOn', f'TTS: Text-to-speech enabled')
-        else:
-            emit_output_event('ttsOffManual', f'TTS: Text-to-speech disabled manually')
+        #if tts_enabled:
+        #    emit_output_event('ttsOn', f'Text-to-speech enabled')
+        #else:
+        #    emit_output_event('ttsOffManual', f'Text-to-speech disabled')
         
         return jsonify({
             "success": True,

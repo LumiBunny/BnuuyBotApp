@@ -119,7 +119,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (data.tts_enabled) {
                             OutputManager.ttsOn();
                         } else {
-                            OutputManager.ttsOff();
+                            OutputManager.ttsOffManual();
                         }
                     }
                 }

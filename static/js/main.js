@@ -152,7 +152,7 @@ const OutputTypes = {
     ttsPlaying: { type: 'ttsPlaying', emoji: '🔊', label: 'TTS Playing' },
     ttsFinished: { type: 'ttsFinished', emoji: '🔉', label: 'TTS Finished' },
     sttOn: { type: 'sttOn', emoji: '🎤', label: 'Listening' },
-    sttOff: { type: 'sttOff', emoji: '🎧', label: 'Not Listening' },
+    sttOff: { type: 'sttOff', emoji: '🎤', label: 'Not Listening' },
     sttTranscribing: { type: 'sttTranscribing', emoji: '✍️', label: 'Transcribing' },
     continuation: { type: 'continuation', emoji: '⏭️', label: 'Continuing' },
     system: { type: 'system', emoji: '⚙️', label: 'System' }
@@ -350,7 +350,7 @@ const OutputManager = {
     },
     
     ttsOffManual() {
-        addOutputMessage('TTS: Text-to-speech disabled manually', OutputTypes.ttsOffManual);
+        addOutputMessage('TTS: Text-to-speech disabled', OutputTypes.ttsOffManual);
     },
     
     ttsOffPlaybackFinished() {
