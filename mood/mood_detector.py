@@ -1,6 +1,6 @@
 import re
 import logging
-from typing import Dict, Optional, List
+from typing import Dict, Optional
 from dataclasses import dataclass
 
 # Optional transformer imports

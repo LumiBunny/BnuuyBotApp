@@ -1,5 +1,5 @@
 import json
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Any
 from datetime import datetime, timedelta
 from dataclasses import dataclass, asdict
 from collections import deque

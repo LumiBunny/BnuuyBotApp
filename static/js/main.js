@@ -1,4 +1,3 @@
-// Add this at the top of your main.js, after the OutputManager definition
 const socket = io();
 
 // Handle connection events

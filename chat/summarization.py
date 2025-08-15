@@ -2,7 +2,7 @@ import json
 import requests
 import logging
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -275,7 +275,7 @@ class ChatSummarizer:
         return final_summary
     
     def reset_session(self):
-        """Reset for a new chat session."""
+        # Reset for a new chat session.
         self.session_start_time = datetime.now()
         self.message_count = 0
         self.last_summary_count = 0

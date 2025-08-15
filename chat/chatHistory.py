@@ -1,7 +1,6 @@
 import json
 import datetime
 from pathlib import Path
-from typing import Optional
 from .summarization import ChatSummarizer
 
 class ChatHistory:
@@ -42,7 +41,7 @@ class ChatHistory:
             self.add_system_message(system_prompt)
     
     def _ensure_directories(self):
-        """Create necessary directory structure."""
+        # Create necessary directory structure.
         self.raw_chats_dir.mkdir(parents=True, exist_ok=True)
     
     def _initialize_history_file(self):
@@ -139,7 +138,7 @@ class ChatHistory:
         return self
 
     def end_session(self):
-        """End the current chat session and generate final summary."""
+        # End the current chat session and generate final summary.
         if len(self.messages) > 1:  # More than just system prompt
             summary = self.summarizer.end_session(self.get_formatted_history(), "session_ended")
             print("📖 Chat log summarized! (Session ended)")

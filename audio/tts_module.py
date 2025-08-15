@@ -11,7 +11,6 @@ import threading
 import re
 import queue
 import time
-import random
 
 class TTSEngine:
     def __init__(self, voice="en-US-AnaNeural", speed=1.18, api_url="http://localhost:5050/v1/audio/speech"):

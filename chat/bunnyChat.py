@@ -103,7 +103,7 @@ class BunnyChat:
             print(f"💭 Inner thought: {inner_thought}")
     
     def _process_user_message(self, user_id: str, message: str):
-        """Process user message for preferences, interests, memories, and generate inner thoughts."""
+        # Process user message for preferences, interests, memories, and generate inner thoughts.
         context_data = {}
         
         try:
@@ -234,7 +234,7 @@ class BunnyChat:
             print(f"Error saving important message: {e}")
     
     def _process_user_message_optimized(self, user_id: str, message: str):
-        """Optimized version that processes context data in parallel"""
+        # Optimized version that processes context data in parallel.
         context_data = {
             'preferences': {},
             'interest_scores': {},
@@ -283,7 +283,7 @@ class BunnyChat:
             return None, context_data
     
     def _extract_preferences(self, user_id: str, message: str) -> dict:
-        """Extract preferences with timeout protection"""
+        # Extract preferences with timeout protection.
         try:
             results = self.preference_extractor.extract_preferences(message, user_id)
             return results if results else {}
@@ -291,14 +291,14 @@ class BunnyChat:
             return {}
     
     def _track_interests(self, user_id: str, message: str) -> dict:
-        """Track interests with timeout protection"""
+        # Track interests with timeout protection.
         try:
             return self.interest_tracker.track_conversation_interests(user_id, message) or {}
         except:
             return {}
     
     def _get_relevant_memories(self, user_id: str) -> list:
-        """Get memories with caching and timeout protection"""
+        # Get memories with caching and timeout protection.
         try:
             memories = self.memory_manager.get_memories(user_id, min_importance=0.3, days_back=30)[:3]
             return [
@@ -314,7 +314,7 @@ class BunnyChat:
             return []
     
     def _get_mood_data(self, user_id: str) -> dict:
-        """Get mood data with timeout protection"""
+        # Get mood data with timeout protection.
         try:
             mood_summary_data = self.mood_system.get_user_mood_summary(user_id)
             if mood_summary_data:
@@ -327,12 +327,12 @@ class BunnyChat:
         return {'mood_score': 0.5, 'mood_summary': 'neutral'}
     
     def _is_reminder_request(self, message):
-        """Check if message contains a reminder request"""
+        # Check if message contains a reminder request.
         reminder_keywords = ["remind me", "reminder", "don't forget", "remember to", "appointment", "meeting"]
         return any(keyword in message.lower() for keyword in reminder_keywords)
     
     def _extract_reminder_text(self, message):
-        """Extract the reminder text from a message"""
+        # Extract the reminder text from a message.
         # Simple extraction - you can make this more sophisticated
         if "remind me to" in message.lower():
             return message.lower().split("remind me to", 1)[1].strip()
@@ -341,7 +341,7 @@ class BunnyChat:
         return message.strip()
     
     def _extract_due_date(self, message):
-        """Extract due date from message (basic implementation)"""
+        # Extract due date from message (basic implementation).
         from datetime import datetime, timedelta
         
         # Simple date extraction - you can enhance this
@@ -353,7 +353,7 @@ class BunnyChat:
         return None
     
     def _is_important_message(self, message):
-        """Determine if a message contains important information to remember"""
+        # Determine if a message contains important information to remember.
         important_keywords = [
             "remember", "important", "birthday", "anniversary", "favorite", 
             "hate", "love", "never", "always", "family", "work", "school",
@@ -362,7 +362,7 @@ class BunnyChat:
         return any(keyword in message.lower() for keyword in important_keywords)
     
     def _extract_tags(self, message):
-        """Extract relevant tags from a message for memory categorization"""
+        # Extract relevant tags from a message for memory categorization.
         tags = []
         tag_keywords = {
             "food": ["eat", "food", "restaurant", "cook", "recipe", "hungry"],
@@ -381,12 +381,12 @@ class BunnyChat:
         return tags if tags else ["general"]
     
     def add_assistant_message(self, content):
-        """Add an assistant message to the chat history and LM Studio chat"""
+        # Add an assistant message to the chat history and LM Studio chat.
         self.chat_history.add_assistant_message(content)
         self.chat.add_assistant_response(content)
     
     def get_response(self, message, user_id="lumi"):
-        """Enhanced response generation with realistic thinking integration"""
+        # Enhanced response generation with realistic thinking integration.
         print(f"\n🤖 Processing message: {message[:50]}...")
         
         # Check if this is a continuation request
@@ -451,9 +451,9 @@ class BunnyChat:
                 # Create enhanced system prompt with inner thought
                 enhanced_system_prompt = f"""{self.system_prompt}
 
-[Inner Reflection]: {inner_thought}
+                [Inner Reflection]: {inner_thought}
 
-Use this internal reflection to inform your response, but don't mention it directly. Be empathetic and engaging."""
+                Use this internal reflection to inform your response, but don't mention it directly. Be empathetic and engaging."""
                 
                 # Create response using enhanced system prompt
                 contextual_chat = lms.Chat(enhanced_system_prompt)
@@ -491,11 +491,11 @@ Use this internal reflection to inform your response, but don't mention it direc
         return response_text
     
     def get_response_stream(self):
-        """Get a streaming response from the model"""
+        # Get a streaming response from the model.
         return self.model.respond_stream(self.chat)
     
     def save_conversation_summary(self, user_id='lumi'):
-        # Save a summary of the current conversation to memory
+        # Save a summary of the current conversation to memory.
         if len(self.chat_history.messages) < 4:  # Need at least some conversation
             return
         
@@ -568,7 +568,7 @@ Use this internal reflection to inform your response, but don't mention it direc
             print(f"\nBunny: {response}")
 
     def _is_continue_request(self, message):
-        """Check if the message is requesting continuation"""
+        # Check if the message is requesting continuation.
         continue_patterns = [
             "...", "continue", "keep going", "go on", "and?", 
             "tell me more", "what else", "more", "keep talking"
@@ -579,7 +579,7 @@ Use this internal reflection to inform your response, but don't mention it direc
         return message_lower in continue_patterns
     
     def _handle_continue_request(self, message, user_id):
-        """Handle continuation requests by prompting the model to continue"""
+        # Handle continuation requests by prompting the model to continue.
         # Add user message to chat history
         self.chat_history.add_user_message(message, user_id)
         

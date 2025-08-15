@@ -214,7 +214,7 @@ class InnerDialogue:
         return "general_reflection", self._think_general_reflection(user_id, user_message, context_data, recent_messages)
     
     def _think_new_preferences(self, user_id: str, new_preferences: List[str], user_message: str, recent_messages: List[Dict]) -> Optional[str]:
-        """Generate thoughts about newly discovered preferences."""
+        # Generate thoughts about newly discovered preferences.
         preferences_text = ", ".join(new_preferences)
         recent_context = self._get_recent_context_summary(recent_messages)
         
@@ -228,7 +228,7 @@ class InnerDialogue:
         return self._generate_thought(prompt)
     
     def _think_relevant_memories(self, user_id: str, relevant_memories: List[Dict], user_message: str, recent_messages: List[Dict]) -> Optional[str]:
-        """Generate thoughts about relevant memories (now pre-filtered for relevancy)."""
+        # Generate thoughts about relevant memories (now pre-filtered for relevancy).
         memory_summaries = []
         for memory in relevant_memories[:2]:  # Limit to top 2 most relevant
             content = memory.get('content', '')
@@ -249,7 +249,7 @@ class InnerDialogue:
         return self._generate_thought(prompt)
     
     def _think_strong_signals(self, user_id: str, signal_type: str, score: float, description: str, user_message: str, recent_messages: List[Dict]) -> Optional[str]:
-        """Generate thoughts about strong mood or interest signals."""
+        # Generate thoughts about strong mood or interest signals.
         recent_context = self._get_recent_context_summary(recent_messages)
         
         prompt = f"""Strong {signal_type} detected for {user_id}: {description} (intensity: {score:.2f})
@@ -262,7 +262,7 @@ class InnerDialogue:
         return self._generate_thought(prompt)
     
     def _think_general_reflection(self, user_id: str, user_message: str, context_data: Dict[str, Any], recent_messages: List[Dict]) -> Optional[str]:
-        """Generate general reflective thoughts (used sparingly)."""
+        # Generate general reflective thoughts (used sparingly).
         recent_context = self._get_recent_context_summary(recent_messages)
         
         prompt = f"""{user_id} just said: "{user_message}"
@@ -274,7 +274,7 @@ class InnerDialogue:
         return self._generate_thought(prompt)
     
     def _get_recent_context_summary(self, recent_messages: List[Dict]) -> str:
-        """Get a brief summary of recent conversation context."""
+        # Get a brief summary of recent conversation context.
         if not recent_messages:
             return "No recent context"
         

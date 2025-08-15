@@ -223,7 +223,7 @@ class MemoryManager:
     # === CONVERSATION MANAGEMENT ===
     
     def _load_recent_summaries(self, user_id: str, days_back: int = 7) -> List[Dict]:
-        """Load and cache recent conversation summaries for a user."""
+        # Load and cache recent conversation summaries for a user.
         self._ensure_user_structure(user_id)
         
         summaries_dir = self._get_user_dir(user_id) / "conversations" / "summaries"
@@ -258,13 +258,13 @@ class MemoryManager:
         return summaries
     
     def get_recent_summaries(self, user_id: str, days_back: int = 7, force_refresh: bool = False) -> List[Dict]:
-        """Get recent conversation summaries, using cache if available."""
+        # Get recent conversation summaries, using cache if available.
         if user_id not in self.recent_summaries or force_refresh:
             return self._load_recent_summaries(user_id, days_back)
         return self.recent_summaries[user_id]
     
     def get_latest_summary(self, user_id: str) -> Optional[Dict]:
-        """Get the most recent summary for a user."""
+        # Get the most recent summary for a user.
         summaries = self.get_recent_summaries(user_id, days_back=30)  # Look back up to 30 days
         return summaries[0] if summaries else None
     
