@@ -123,7 +123,7 @@ class InnerDialogue:
         return filtered_context
     
     def _extract_recent_conversation_text(self, recent_messages: List[Dict], current_message: str) -> str:
-        """Extract text from recent messages for relevancy comparison."""
+        # Extract text from recent messages for relevancy comparison.
         text_parts = [current_message]
         
         for msg in recent_messages[-10:]:  # Last 10 messages

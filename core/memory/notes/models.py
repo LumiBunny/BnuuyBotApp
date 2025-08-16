@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 
 @dataclass
 class Note:
-    """Represents a single note with metadata and content."""
+    # Represents a single note with metadata and content.
     id: str
     title: str
     content: str
@@ -15,7 +15,7 @@ class Note:
     context: Optional[Dict] = None
     
     def to_dict(self) -> Dict:
-        """Convert note to dictionary for JSON serialization."""
+        # Convert note to dictionary for JSON serialization.
         data = asdict(self)
         data['created_at'] = self.created_at.isoformat()
         data['updated_at'] = self.updated_at.isoformat()
@@ -23,7 +23,7 @@ class Note:
     
     @classmethod
     def from_dict(cls, data: Dict) -> 'Note':
-        """Create Note from dictionary (JSON deserialization)."""
+        # Create Note from dictionary (JSON deserialization).
         data = data.copy()
         data['created_at'] = datetime.fromisoformat(data['created_at'])
         data['updated_at'] = datetime.fromisoformat(data['updated_at'])

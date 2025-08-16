@@ -10,7 +10,7 @@ from .models import Note
 logger = logging.getLogger(__name__)
 
 class NoteManager:
-    """Manages note storage and retrieval for a single user."""
+    # Manages note storage and retrieval for a single user.
     
     def __init__(self, user_data_dir: Path):
         """
@@ -24,13 +24,13 @@ class NoteManager:
         self._ensure_notes_file()
     
     def _ensure_notes_file(self) -> None:
-        """Ensure the notes file exists with an empty list if it doesn't exist."""
+        # Ensure the notes file exists with an empty list if it doesn't exist.
         if not self.notes_file.exists():
             self.notes_file.parent.mkdir(parents=True, exist_ok=True)
             self._save_notes([])
     
     def _load_notes(self) -> List[Dict]:
-        """Load all notes from the JSON file."""
+        # Load all notes from the JSON file.
         try:
             if not self.notes_file.exists():
                 return []
@@ -41,7 +41,7 @@ class NoteManager:
             return []
     
     def _save_notes(self, notes_data: List[Dict]) -> None:
-        """Save notes to the JSON file."""
+        # Save notes to the JSON file.
         try:
             with open(self.notes_file, 'w', encoding='utf-8') as f:
                 json.dump(notes_data, f, indent=2, ensure_ascii=False)
@@ -51,7 +51,7 @@ class NoteManager:
     
     def create_note(self, title: str, content: str, category: str = "general", 
                    tags: Optional[List[str]] = None, context: Optional[Dict] = None) -> Note:
-        """Create a new note."""
+        # Create a new note.
         note = Note(
             id=str(uuid.uuid4()),
             title=title,
@@ -69,17 +69,17 @@ class NoteManager:
         return note
     
     def get_note(self, note_id: str) -> Optional[Note]:
-        """Retrieve a note by ID."""
+        # Retrieve a note by ID.
         notes = [Note.from_dict(n) for n in self._load_notes()]
         return next((n for n in notes if n.id == note_id), None)
     
     def get_all_notes(self) -> List[Note]:
-        """Get all notes, sorted by most recently updated."""
+        # Get all notes, sorted by most recently updated.
         notes = [Note.from_dict(n) for n in self._load_notes()]
         return sorted(notes, key=lambda x: x.updated_at, reverse=True)
     
     def update_note(self, note_id: str, **updates) -> Optional[Note]:
-        """Update an existing note."""
+        # Update an existing note.
         notes_data = self._load_notes()
         
         for i, note_data in enumerate(notes_data):
@@ -101,7 +101,7 @@ class NoteManager:
         return None
     
     def delete_note(self, note_id: str) -> bool:
-        """Delete a note by ID. Returns True if deleted, False if not found."""
+        # Delete a note by ID. Returns True if deleted, False if not found.
         notes_data = self._load_notes()
         initial_count = len(notes_data)
         
@@ -116,7 +116,7 @@ class NoteManager:
     
     def search_notes(self, query: str = "", category: Optional[str] = None, 
                     tags: Optional[List[str]] = None, limit: int = 10) -> List[Note]:
-        """Search notes with flexible filtering."""
+        # Search notes with flexible filtering.
         notes = self.get_all_notes()
         
         # Filter by category if specified
@@ -147,7 +147,7 @@ class NoteManager:
         return notes[:limit]
     
     def get_categories(self) -> Dict[str, int]:
-        """Get all categories with note counts."""
+        # Get all categories with note counts.
         notes = self.get_all_notes()
         categories = {}
         for note in notes:
@@ -155,7 +155,7 @@ class NoteManager:
         return categories
     
     def get_tags(self) -> Dict[str, int]:
-        """Get all tags with note counts."""
+        # Get all tags with note counts.
         notes = self.get_all_notes()
         tags = {}
         for note in notes:

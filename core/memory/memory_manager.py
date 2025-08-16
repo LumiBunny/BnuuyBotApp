@@ -168,7 +168,7 @@ class MemoryManager:
     # === INTEREST MANAGEMENT ===
     
     def add_interest(self, user_id: str, topic: str, score: float, context: str = None) -> None:
-        """Add or update an interest score for a user."""
+        # Add or update an interest score for a user.
         self._ensure_user_structure(user_id)
         
         interests_file = self._get_user_dir(user_id) / "profile" / "interests.json"
@@ -188,7 +188,7 @@ class MemoryManager:
         logger.info(f"Updated interest for {user_id}: {topic} = {score:.2f}")
     
     def get_interests(self, user_id: str, min_score: float = 0.0) -> Dict[str, Dict]:
-        """Get user interests, optionally filtered by minimum score."""
+        # Get user interests, optionally filtered by minimum score.
         self._ensure_user_structure(user_id)
         
         interests_file = self._get_user_dir(user_id) / "profile" / "interests.json"

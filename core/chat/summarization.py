@@ -251,9 +251,9 @@ class ChatSummarizer:
             
             final_prompt = f"""Create a brief overall summary (3-5 sentences) of this entire chat session based on these periodic summaries:
 
-        {combined_text}
+            {combined_text}
 
-        Provide a cohesive overview of the main topics and outcomes:"""
+            Provide a cohesive overview of the main topics and outcomes:"""
             
             final_summary = self._call_lm_studio(final_prompt, max_tokens=150)
         elif len(self.session_data["periodic_summaries"]) == 1:
@@ -286,7 +286,7 @@ class ChatSummarizer:
         logger.info("Chat summarizer reset for new session")
 
     def get_session_summary(self) -> Dict:
-        """Get current session summary data."""
+        # Get current session summary data.
         return self.session_data.copy() if self.session_data else {}
 
 # Example usage

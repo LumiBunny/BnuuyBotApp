@@ -298,8 +298,6 @@ def load_chat_history():
         app.logger.error(f"Error loading chat history: {str(e)}")
         return jsonify({"success": False, "error": f"Failed to load chat history: {str(e)}"}), 500
 
-
-
 @app.route('/get_transcription', methods=['GET'])
 def get_transcription():
     return jsonify({

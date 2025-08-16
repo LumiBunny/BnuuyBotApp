@@ -41,7 +41,7 @@ class IntegratedMoodSystem:
         return self.user_contexts[user_id]
     
     def _log_mood_observation(self, user_id: str, mood_result: Dict[str, Any], message: str):
-        """Log mood observation to JSON file with timestamp."""
+        # Log mood observation to JSON file with timestamp.
         try:
             # Create log entry
             log_entry = {
@@ -150,14 +150,14 @@ class IntegratedMoodSystem:
         guidance = mood_context['response_guidance']
         
         return f"""
-Current User Emotional Context:
-- {mood_context['mood_summary']}
-- Emotional trend: {mood_context['mood_trend']}
-- Recommended response tone: {guidance['response_tone']}
-- Empathy approach: {guidance['empathy_level']}
+        Current User Emotional Context:
+        - {mood_context['mood_summary']}
+        - Emotional trend: {mood_context['mood_trend']}
+        - Recommended response tone: {guidance['response_tone']}
+        - Empathy approach: {guidance['empathy_level']}
 
-Please feel free to adapt your responses accordingly.
-"""
+        Please feel free to adapt your responses accordingly.
+        """
     
     def get_user_mood_summary(self, user_id: str) -> Dict[str, Any]:
         # Get comprehensive mood summary for a user
