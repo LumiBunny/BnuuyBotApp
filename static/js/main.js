@@ -163,7 +163,7 @@ let lastStreamingMessage = null;
 let lastStreamingType = null;
 
 // Enhanced Output Panel Functions
-function addOutputMessage(content, outputType = OutputTypes.system, data = null, isStreaming = false) {
+function addOutputMessage(content, outputType, data = null, isStreaming = false) {
     console.log('Adding output message:', { 
         content, 
         outputType, 
@@ -218,9 +218,9 @@ function addOutputMessage(content, outputType = OutputTypes.system, data = null,
     
     // Set the appropriate class based on message type
     let messageClass = 'output-message';
-    if (outputType === OutputTypes.system) {
+    if (outputType === OutputTypes.system.type) {
         messageClass += ' system-output';
-    } else if (outputType === OutputTypes.botPreview) {
+    } else if (outputType === OutputTypes.botPreview.type) {
         messageClass += ' bot-preview';
     }
     
@@ -229,6 +229,9 @@ function addOutputMessage(content, outputType = OutputTypes.system, data = null,
     }
     
     messageDiv.className = messageClass;
+    
+    // Set data-type attribute for CSS styling
+    messageDiv.setAttribute('data-type', outputType);
     
     const timestamp = new Date().toLocaleTimeString('en-US', { 
         hour12: false, 
@@ -251,8 +254,8 @@ function addOutputMessage(content, outputType = OutputTypes.system, data = null,
     
     // Set the message HTML
     messageDiv.innerHTML = `
-        <span class="emoji">${outputType.emoji}</span>
-        <span class="output-label">${outputType.label}:</span>
+        <span class="emoji">${OutputTypes[outputType].emoji}</span>
+        <span class="output-label">${OutputTypes[outputType].label}:</span>
         <span class="message-content">${messageContent || ''}</span>
         <span class="timestamp">${timestamp}</span>
     `;
@@ -312,84 +315,84 @@ function formatObjectOutput(obj) {
 const OutputManager = {
     // Bot processing and preview
     botProcessing(message) {
-        addOutputMessage(message, OutputTypes.botProcessing);
+        addOutputMessage(message, OutputTypes.botProcessing.type);
     },
     
     botPreview(message) {
-        addOutputMessage(message, OutputTypes.botPreview);
+        addOutputMessage(message, OutputTypes.botPreview.type);
     },
     
     // Inner thoughts
     innerThoughts(thoughts) {
-        addOutputMessage(thoughts, OutputTypes.innerThoughts);
+        addOutputMessage(thoughts, OutputTypes.innerThoughts.type);
     },
     
     // Preferences
     preferences(prefs) {
-        addOutputMessage(formatObjectOutput(prefs), OutputTypes.preferences);
+        addOutputMessage(formatObjectOutput(prefs), OutputTypes.preferences.type);
     },
     
     // Interests
     interests(interests) {
-        addOutputMessage(formatObjectOutput(interests), OutputTypes.interests);
+        addOutputMessage(formatObjectOutput(interests), OutputTypes.interests.type);
     },
     
     // Mood detection
     mood(moodData) {
-        addOutputMessage(formatObjectOutput(moodData), OutputTypes.mood);
+        addOutputMessage(formatObjectOutput(moodData), OutputTypes.mood.type);
     },
     
     // Relevant memories
     memories(memories) {
-        addOutputMessage(formatObjectOutput(memories), OutputTypes.memories);
+        addOutputMessage(formatObjectOutput(memories), OutputTypes.memories.type);
     },
     
     // TTS events
     ttsOn() {
-        addOutputMessage('TTS: Text-to-speech enabled', OutputTypes.ttsOn);
+        addOutputMessage('TTS: Text-to-speech enabled', OutputTypes.ttsOn.type);
     },
     
     ttsOffManual() {
-        addOutputMessage('TTS: Text-to-speech disabled', OutputTypes.ttsOffManual);
+        addOutputMessage('TTS: Text-to-speech disabled', OutputTypes.ttsOffManual.type);
     },
     
     ttsOffPlaybackFinished() {
-        addOutputMessage('TTS: Playback finished', OutputTypes.ttsOffPlaybackFinished);
+        addOutputMessage('TTS: Playback finished', OutputTypes.ttsOffPlaybackFinished.type);
     },
     
     ttsPlaying(text) {
-        addOutputMessage('TTS: Starting audio playback', OutputTypes.ttsPlaying);
+        addOutputMessage('TTS: Starting audio playback', OutputTypes.ttsPlaying.type);
     },
     
     ttsFinished() {
-        addOutputMessage('TTS: Playback finished', OutputTypes.ttsFinished);
+        addOutputMessage('TTS: Playback finished', OutputTypes.ttsFinished.type);
     },
     
     // STT events
     sttOn() {
-        addOutputMessage('Speech recognition started', OutputTypes.sttOn);
+        addOutputMessage('Speech recognition started', OutputTypes.sttOn.type);
     },
     
     sttOff() {
-        addOutputMessage('Speech recognition stopped', OutputTypes.sttOff);
+        addOutputMessage('Speech recognition stopped', OutputTypes.sttOff.type);
     },
     
     sttTranscribing(status) {
         if (typeof status === 'string') {
-            addOutputMessage(status, OutputTypes.sttTranscribing);
+            addOutputMessage(status, OutputTypes.sttTranscribing.type);
         } else if (status && status.text) {
-            addOutputMessage(`Transcribing: ${status.text}`, OutputTypes.sttTranscribing);
+            addOutputMessage(`Transcribing: ${status.text}`, OutputTypes.sttTranscribing.type);
         }
     },
     
     // Continuation
     continuation(data) {
-        addOutputMessage('Continuing response...', OutputTypes.continuation);
+        addOutputMessage('Continuing response...', OutputTypes.continuation.type);
     },
     
     // System messages
     system(message, data) {
-        addOutputMessage(message, OutputTypes.system, data);
+        addOutputMessage(message, OutputTypes.system.type, data);
     }
 };
 
@@ -434,7 +437,7 @@ function processOutputEvent(event) {
             break;
         case 'botPreview':
             // Pass the isStreaming flag to the output message
-            addOutputMessage(content, OutputTypes.botPreview, data, isStreaming);
+            addOutputMessage(content, OutputTypes.botPreview.type, data, isStreaming);
             break;
         case 'innerThoughts':
             OutputManager.innerThoughts(content, data);

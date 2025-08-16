@@ -1065,3 +1065,34 @@ label[for="user_id"] {
 #scroll-to-bottom-conversation-btn:active {
     transform: scale(0.95);
 }
+
+/* TTS Status Messages */
+.output-message[data-type="ttsOn"], 
+.output-message[data-type="ttsPlaying"],
+.output-message[data-type="ttsFinished"] {
+    background-color: #c0e2b6 !important; /* Green for enabled states */
+    color: #1a1a1a;
+}
+
+.output-message[data-type="ttsOffManual"],
+.output-message[data-type="ttsOffPlaybackFinished"] {
+    background-color: #eaa2a9 !important; /* Red for disabled states */
+    color: #1a1a1a;
+}
+
+/* STT Status Messages */
+.output-message[data-type="sttOn"] {
+    background-color: #c0e2b6 !important; /* Green for enabled */
+    color: #1a1a1a;
+}
+
+.output-message[data-type="sttOff"] {
+    background-color: #eaa2a9 !important; /* Red for disabled */
+    color: #1a1a1a;
+}
+
+/* STT Transcribing State */
+.output-message[data-type="sttTranscribing"] {
+    background-color: #ffe288 !important; /* Yellow for transcribing state */
+    color: #1a1a1a;
+}
