@@ -1,6 +1,6 @@
-from flask import Flask, render_template, jsonify, request, redirect, url_for
-from audio import SpeechToText, TTSEngine
-from chat import BunnyChat, ChatHistory
+from flask import Flask, render_template, jsonify, request, redirect, url_for, send_from_directory
+from services.audio import SpeechToText, TTSEngine
+from core.chat import BunnyChat, ChatHistory
 from flask_socketio import SocketIO, emit, join_room, leave_room
 import pygame
 import time
@@ -13,8 +13,19 @@ logging.basicConfig(level=logging.INFO)
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
 # Initialize Flask app
-app = Flask(__name__)
+app = Flask(
+    __name__,
+    template_folder='web/templates',
+    static_folder='web/static',
+    static_url_path='/static'  # This ensures static files are served from /static URL path
+)
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Disable caching
+
+# Add a route to explicitly serve static files (as a fallback)
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    return send_from_directory(app.static_folder, filename)
+
 socketio = SocketIO(app, cors_allowed_origins="*")  # Allow cross-origin for development
 
 # Helper function to emit output events

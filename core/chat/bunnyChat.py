@@ -1,10 +1,10 @@
 import lmstudio as lms
 from .chatHistory import ChatHistory
-from memory.memory_manager import MemoryManager
-from preferences.preferences import PreferenceExtractor
-from interests.interest_tracker import InterestTracker
-from mood.mood_system import IntegratedMoodSystem
-from thinking.inner_dialogue import InnerDialogue
+from ..memory import MemoryManager
+from ..memory.preferences import PreferenceExtractor
+from ..memory.interests import InterestTracker
+from ..memory.mood import IntegratedMoodSystem
+from ..thinking import InnerDialogue
 import concurrent.futures
 
 class BunnyChat:

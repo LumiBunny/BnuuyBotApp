@@ -16,7 +16,7 @@ class InnerDialogue:
     def __init__(self, 
                  lm_studio_endpoint: str = "http://localhost:1234/v1/chat/completions",
                  model_name: str = "llama-3.2-1b-instruct-uncensored",
-                 log_directory: str = "logs/inner_dialogue",
+                 log_directory: str = "thinking/logs/inner_dialogue",
                  relevancy_threshold: float = 0.3):
         """
         Initialize the inner dialogue system.
@@ -24,7 +24,7 @@ class InnerDialogue:
         Args:
             lm_studio_endpoint: LM Studio API endpoint
             model_name: Name of the model to use for inner thoughts
-            log_directory: Directory to store thought logs
+            log_directory: Directory to store thought logs (default: thinking/logs/inner_dialogue)
             relevancy_threshold: Minimum relevancy score for memories to be considered
         """
         self.endpoint = lm_studio_endpoint

@@ -4,7 +4,7 @@ from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict
 from pathlib import Path
 import logging
-from preferences.preferences import PreferenceResult
+from .preferences import PreferenceResult
 
 logger = logging.getLogger(__name__)
 
