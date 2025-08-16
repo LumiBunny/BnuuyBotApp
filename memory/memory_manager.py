@@ -4,7 +4,7 @@ from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict
 from pathlib import Path
 import logging
-from preferences import PreferenceResult
+from preferences.preferences import PreferenceResult
 
 logger = logging.getLogger(__name__)
 
@@ -164,6 +164,44 @@ class MemoryManager:
         if category:
             return prefs.get(category, {"likes": [], "dislikes": [], "loves": [], "hates": []})
         return prefs
+    
+    # === INTEREST MANAGEMENT ===
+    
+    def add_interest(self, user_id: str, topic: str, score: float, context: str = None) -> None:
+        """Add or update an interest score for a user."""
+        self._ensure_user_structure(user_id)
+        
+        interests_file = self._get_user_dir(user_id) / "profile" / "interests.json"
+        interests = self._load_json(interests_file) or {}
+        
+        # Update or add the interest
+        interests[topic] = {
+            "score": score,
+            "last_updated": datetime.now().isoformat(),
+            "context": context
+        }
+        
+        self._save_json(interests_file, interests)
+        
+        # Beautiful emoji formatting for interest tracking
+        print(f"📚 Interest updated: {topic} ({score:.2f})")
+        logger.info(f"Updated interest for {user_id}: {topic} = {score:.2f}")
+    
+    def get_interests(self, user_id: str, min_score: float = 0.0) -> Dict[str, Dict]:
+        """Get user interests, optionally filtered by minimum score."""
+        self._ensure_user_structure(user_id)
+        
+        interests_file = self._get_user_dir(user_id) / "profile" / "interests.json"
+        interests = self._load_json(interests_file) or {}
+        
+        # Filter by minimum score if specified
+        if min_score > 0.0:
+            interests = {
+                topic: data for topic, data in interests.items() 
+                if data.get("score", 0) >= min_score
+            }
+        
+        return interests
     
     # === MEMORY MANAGEMENT ===
     

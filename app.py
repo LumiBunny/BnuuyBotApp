@@ -96,7 +96,10 @@ def process_message(text):
     # Process a single message or combined buffered messages
     print(f"Processing message for BunnyChat: {text}")
     
-    # Use the new get_response method signature with message parameter
+    # CRITICAL FIX: Call add_user_message first to trigger memory processing
+    bunny.add_user_message(text, user_id="lumi")
+    
+    # Then get the response
     response = bunny.get_response(text, user_id="lumi")
     
     handle_completion(response)

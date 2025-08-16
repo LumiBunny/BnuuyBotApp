@@ -37,6 +37,7 @@ ENV/
 .DS_Store
 
 # Application-specific
+BnuuyBotApp-0.5.7/
 chat_logs/*.json
 data/memories/*.json
 user_profiles/*.json

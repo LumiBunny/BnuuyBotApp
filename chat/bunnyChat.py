@@ -1,9 +1,9 @@
 import lmstudio as lms
 from .chatHistory import ChatHistory
-from memory import MemoryManager
-from preferences import PreferenceExtractor
-from interests import InterestTracker
-from mood import IntegratedMoodSystem
+from memory.memory_manager import MemoryManager
+from preferences.preferences import PreferenceExtractor
+from interests.interest_tracker import InterestTracker
+from mood.mood_system import IntegratedMoodSystem
 from thinking.inner_dialogue import InnerDialogue
 import concurrent.futures
 
@@ -55,15 +55,15 @@ class BunnyChat:
             self.chat_history.messages = []  # Clear the default system message
             for msg in initial_messages:
                 if msg['role'] == 'user':
-                    self.chat_history.add_message('user', msg['content'])
+                    self.chat_history.add_user_message(msg['content'], user_id="lumi")
                     self.chat.add_user_message(msg['content'])
                 elif msg['role'] == 'assistant':
-                    self.chat_history.add_message('assistant', msg['content'])
+                    self.chat_history.add_assistant_message(msg['content'])
                     self.chat.add_assistant_response(msg['content'])
                 elif msg['role'] == 'system' and msg['content'] != self.system_prompt:
                     # Only update system prompt if it's different
                     self.system_prompt = msg['content']
-                    self.chat_history.add_message('system', self.system_prompt)
+                    self.chat_history.add_system_message(self.system_prompt)
                     self.chat = lms.Chat(self.system_prompt)
     
     def reset_chat(self, initial_messages=None):
@@ -95,7 +95,7 @@ class BunnyChat:
         inner_thought, context_data = self._process_user_message_optimized(user_id, message)
         
         # Add to chat systems after processing
-        self.chat_history.add_message('user', message, user_id=user_id)
+        self.chat_history.add_user_message(message, user_id=user_id)
         self.chat.add_user_message(message)
         
         # If we have an inner thought, log it
