@@ -244,60 +244,6 @@ def load_chat():
     except Exception as e:
         return jsonify({"success": False, "message": str(e)})
 
-@app.route('/list_histories', methods=['GET'])
-def list_histories():
-    history_dir = "chat_history"
-    try:
-        files = [f for f in os.listdir(history_dir) if f.endswith('.json')]
-        return jsonify({"success": True, "histories": sorted(files, reverse=True)})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
-
-@app.route('/load_chat_history', methods=['POST'])
-def load_chat_history():
-    data = request.get_json()
-    filename = data.get('filename')
-    
-    if not filename:
-        return jsonify({"success": False, "error": "No filename provided"}), 400
-    
-    try:
-        # Reset the chat history and load the selected one
-        system_prompt = bunny.chat_history.messages[0]['content'] if bunny.chat_history.messages else None
-        
-        # Load the chat history from file
-        new_history = ChatHistory.load_from_file(filename, system_prompt=system_prompt)
-        
-        # Update the bunny's chat history
-        bunny.chat_history = new_history
-        
-        # Clear the transcription history and LLM responses to prevent duplication
-        # These arrays are used by the polling system for plain text display
-        # We don't want to populate them with loaded history to avoid duplication
-        global transcription_history, llm_responses
-        transcription_history = []
-        llm_responses = []
-        
-        # Extract messages for the UI (chat bubbles only)
-        messages = []
-        for msg in new_history.messages:
-            # Only add to messages for chat bubble display, not to polling arrays
-            messages.append({
-                'role': msg['role'],
-                'content': msg['content'],
-                'timestamp': msg['timestamp']
-            })
-        
-        return jsonify({
-            "success": True, 
-            "messages": messages,
-            "message": f"Loaded chat history: {filename}"
-        })
-        
-    except Exception as e:
-        app.logger.error(f"Error loading chat history: {str(e)}")
-        return jsonify({"success": False, "error": f"Failed to load chat history: {str(e)}"}), 500
-
 @app.route('/get_transcription', methods=['GET'])
 def get_transcription():
     return jsonify({
