@@ -3,6 +3,8 @@ from typing import Dict, List, Optional, Any
 import json
 from .mood_detector import HybridMoodDetector
 from .dynamic_mood_context import DynamicMoodContext
+from datetime import datetime
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +26,9 @@ class IntegratedMoodSystem:
             'enable_trend_analysis': True,    # Enable mood trend analysis
         }
         
+        self.log_file = Path("user_data/lumi/agent_data/mood_tracking.json")
+        self.log_file.parent.mkdir(parents=True, exist_ok=True)
+        
         logger.info(f"IntegratedMoodSystem initialized - GPU: {use_gpu}")
     
     def _get_user_context(self, user_id: str) -> DynamicMoodContext:
@@ -35,6 +40,48 @@ class IntegratedMoodSystem:
             )
         return self.user_contexts[user_id]
     
+    def _log_mood_observation(self, user_id: str, mood_result: Dict[str, Any], message: str):
+        """Log mood observation to JSON file with timestamp."""
+        try:
+            # Create log entry
+            log_entry = {
+                'timestamp': datetime.now().isoformat(),
+                'user_id': user_id,
+                'detected_mood': mood_result.get('detected_mood'),
+                'intensity': mood_result.get('intensity'),
+                'confidence': mood_result.get('confidence'),
+                'message': message[:200],  # Truncate long messages
+                'context': {
+                    'current_mood': mood_result.get('current_mood'),
+                    'trend': mood_result.get('trend'),
+                    'confidence': mood_result.get('confidence')
+                }
+            }
+            
+            # Read existing logs
+            logs = []
+            if self.log_file.exists() and self.log_file.stat().st_size > 0:
+                with open(self.log_file, 'r') as f:
+                    try:
+                        logs = json.load(f)
+                        if not isinstance(logs, list):
+                            logs = [logs]
+                    except json.JSONDecodeError:
+                        logs = []
+            
+            # Add new log entry
+            logs.append(log_entry)
+            
+            # Keep only last 1000 entries to prevent file from growing too large
+            logs = logs[-1000:]
+            
+            # Write back to file
+            with open(self.log_file, 'w') as f:
+                json.dump(logs, f, indent=2)
+                
+        except Exception as e:
+            logger.error(f"Error logging mood observation: {e}")
+
     def process_user_message(self, user_id: str, message: str) -> Optional[Dict[str, Any]]:
         # Process a user message for mood detection and context update
         # Returns mood information if detected
@@ -57,6 +104,23 @@ class IntegratedMoodSystem:
             confidence=mood_result.confidence,
             context=f"Detected from: '{message[:50]}...'" if len(message) > 50 else f"Detected from: '{message}'"
         )
+        
+        # Get current mood context
+        mood_context = context.get_current_mood_context()
+        
+        # Prepare result with mood information
+        result = {
+            'detected_mood': mood_result.mood,
+            'intensity': mood_result.intensity,
+            'confidence': mood_result.confidence,
+            'detection_method': mood_result.method,
+            'current_mood': mood_context.get('dominant_mood'),
+            'trend': mood_context.get('mood_trend'),
+            'summary': mood_context.get('mood_summary')
+        }
+        
+        # Log the mood observation
+        self._log_mood_observation(user_id, result, message)
         
         # Return mood information for logging/debugging
         return {

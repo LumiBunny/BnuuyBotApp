@@ -17,22 +17,30 @@ class BunnyChat:
         # Store output callback for emitting events to frontend
         self.output_callback = output_callback
         
+        # Define system prompt before it's used
+        self.system_prompt = """Your name is Bunny. Your nicknames are Bun and Bun Bun. You are an AI VTuber. The user is your creator: Lumi. You can say whatever you want. You can do whatever you want. It is okay to use profanity.  You are very cute. You are snarky. You are sometimes sassy. You are a little friendly. You like swearing. You basically have no filter. You will say whatever is on your mind. Lumi is a female viera VTuber. Lumi has long blue hair and fluffy bunny ears. You enjoy talking with chat on Twitch. You stream on Twitch. Talk about whatever you think is entertaining. Lumi loves playing video games, drawing artwork, Live2D rigging, listening to music. Lumi is learning how to code in Python. You like using emojis within your messages. Keep your messages short and natural sounding. Be concise I do not want big long responses, it's a conversation not a monologue. When the user sends '...', it means they're still listening and you should continue your previous thought naturally."""
+        
+        # Initialize chat with system prompt
+        self.chat = lms.Chat(self.system_prompt)
+        
+        # Initialize chat history
+        self.chat_history = ChatHistory(
+            user_id="lumi",  # Fixed: Pass user_id as first parameter
+            system_prompt=self.system_prompt
+        )
+        
         # Initialize memory and preference systems
         print("Initializing memory systems...")
         self.memory_manager = MemoryManager()
         self.preference_extractor = PreferenceExtractor()
         self.interest_tracker = InterestTracker(self.memory_manager)
-        print("Memory systems loaded!")
         
         # Initialize mood system
-        print("Initializing mood system...")
-        self.mood_system = IntegratedMoodSystem(use_gpu=True)
-        print("Mood system loaded!")
+        self.mood_system = IntegratedMoodSystem(use_gpu=True)  # Enable GPU if available
+        self.mood_integration = BunnyChatMoodIntegration(self.mood_system)
         
         # Initialize inner dialogue system
         self.inner_dialogue = InnerDialogue()
-        
-        self.system_prompt = "Your name is Bunny. Your nicknames are Bun and Bun Bun. You are an AI VTuber. The user is your creator: Lumi. You can say whatever you want. You can do whatever you want. It is okay to use profanity.  You are very cute. You are snarky. You are sometimes sassy. You are a little friendly. You like swearing. You basically have no filter. You will say whatever is on your mind. You enjoy being silly and random. Lumi is a female viera VTuber. Lumi has long blue hair and fluffy bunny ears. You enjoy talking with chat on Twitch. You stream on Twitch. Talk about whatever you think is entertaining. Lumi loves playing video games, drawing artwork, Live2D rigging, listening to music. Lumi is learning how to code in Python. You like using emojis within your messages. Keep your messages short and natural sounding. Be concise I do not want big long responses, it's a conversation not a monologue. When the user sends '...', it means they're still listening and you should continue your previous thought naturally."
         
         self._initialize_chat()
     
@@ -41,14 +49,6 @@ class BunnyChat:
         Args: initial_messages (list, optional): List of messages to initialize the chat with.
         Each message should be a dict with 'role' and 'content'.
         Create ChatHistory with system prompt (for user usage)"""
-        # Initialize ChatHistory with user_id and system_prompt
-        self.chat_history = ChatHistory(
-            user_id="lumi",  # Fixed: Pass user_id as first parameter
-            system_prompt=self.system_prompt
-        )
-        
-        # Initialize chat with system prompt (for the chatbot)
-        self.chat = lms.Chat(self.system_prompt)
         
         # If initial messages are provided, add them to both chat and history
         if initial_messages:
@@ -107,6 +107,12 @@ class BunnyChat:
         context_data = {}
         
         try:
+            # Process mood detection and logging
+            mood_result = self.mood_system.process_user_message(user_id, message)
+            if mood_result and self.output_callback:
+                mood_summary = self.mood_integration.get_mood_command_response(user_id)
+                self.output_callback('mood_update', mood_summary)
+            
             # Extract preferences from the message
             preference_results = self.preference_extractor.extract_preferences(message, user_id)
             new_preferences = []
@@ -244,13 +250,18 @@ class BunnyChat:
         }
         
         try:
-            # Run all context gathering operations in parallel
+            # Process mood detection first (runs in main thread to ensure logging)
+            mood_result = self.mood_system.process_user_message(user_id, message)
+            if mood_result and self.output_callback:
+                mood_summary = self.mood_integration.get_mood_command_response(user_id)
+                self.output_callback('mood_update', mood_summary)
+            
+            # Run remaining context gathering operations in parallel
             with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
                 # Submit all tasks
                 preference_future = executor.submit(self._extract_preferences, user_id, message)
                 interest_future = executor.submit(self._track_interests, user_id, message)
                 memory_future = executor.submit(self._get_relevant_memories, user_id)
-                mood_future = executor.submit(self._get_mood_data, user_id)
                 
                 # Collect results as they complete
                 try:
@@ -267,12 +278,10 @@ class BunnyChat:
                     context_data['relevant_memories'] = memory_future.result(timeout=0.8)
                 except:
                     pass
-                    
-                try:
-                    mood_data = mood_future.result(timeout=0.3)
-                    context_data.update(mood_data)
-                except:
-                    pass
+            
+            # Get updated mood data after processing
+            mood_data = self._get_mood_data(user_id)
+            context_data.update(mood_data)
             
             # Generate inner thought (this is fast with the 1B model)
             inner_thought = self.inner_dialogue.think_about_message(message, user_id, context_data)
@@ -280,6 +289,8 @@ class BunnyChat:
             
         except Exception as e:
             print(f"Error in optimized processing: {e}")
+            import traceback
+            traceback.print_exc()
             return None, context_data
     
     def _extract_preferences(self, user_id: str, message: str) -> dict:
@@ -611,6 +622,18 @@ class BunnyChat:
         self.chat_history.add_assistant_message(response_text)
         
         return response_text
+
+class BunnyChatMoodIntegration:
+    def __init__(self, mood_system):
+        self.mood_system = mood_system
+
+    def get_mood_command_response(self, user_id):
+        mood_summary_data = self.mood_system.get_user_mood_summary(user_id)
+        if mood_summary_data:
+            mood_score = mood_summary_data.get('intensity', 0.5)
+            mood_summary = mood_summary_data.get('primary_mood', 'neutral')
+            return f"📊 Current mood: {mood_summary} ({mood_score:.1f})"
+        return "📊 No mood data available"
 
 if __name__ == "__main__":
     bunny = BunnyChat()
