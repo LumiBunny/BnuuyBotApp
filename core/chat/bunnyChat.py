@@ -4,8 +4,14 @@ from ..memory import MemoryManager
 from ..memory.preferences import PreferenceExtractor
 from ..memory.interests import InterestTracker
 from ..memory.mood import IntegratedMoodSystem
+from ..memory.notes.manager import NoteManager
+from ..memory.notes.integration import NotesIntegrationHandler
 from ..thinking import InnerDialogue
 import concurrent.futures
+import os
+from pathlib import Path
+import re
+from typing import Dict, Optional
 
 class BunnyChat:
     def __init__(self, model_name="darkidol-llama-3.1-8b-instruct-1.2-uncensored", output_callback=None):
@@ -23,9 +29,12 @@ class BunnyChat:
         # Initialize chat with system prompt
         self.chat = lms.Chat(self.system_prompt)
         
+        # Default user ID for single-user mode
+        self.user_id = "lumi"
+        
         # Initialize chat history
         self.chat_history = ChatHistory(
-            user_id="lumi",  # Fixed: Pass user_id as first parameter
+            user_id=self.user_id,
             system_prompt=self.system_prompt
         )
         
@@ -42,6 +51,17 @@ class BunnyChat:
         # Initialize inner dialogue system
         self.inner_dialogue = InnerDialogue()
         
+        # Initialize notes system with MemoryManager integration
+        print("Initializing notes system...")
+        self.note_manager = NoteManager(
+            memory_manager=self.memory_manager,
+            nlp_processor=None  # Can add spaCy processor if needed
+        )
+        self.notes_integration = NotesIntegrationHandler(
+            note_manager=self.note_manager,
+            thinking_module=self.inner_dialogue
+        )
+        
         self._initialize_chat()
     
     def _initialize_chat(self, initial_messages=None):
@@ -55,7 +75,7 @@ class BunnyChat:
             self.chat_history.messages = []  # Clear the default system message
             for msg in initial_messages:
                 if msg['role'] == 'user':
-                    self.chat_history.add_user_message(msg['content'], user_id="lumi")
+                    self.chat_history.add_user_message(msg['content'], user_id=self.user_id)
                     self.chat.add_user_message(msg['content'])
                 elif msg['role'] == 'assistant':
                     self.chat_history.add_assistant_message(msg['content'])
@@ -246,7 +266,8 @@ class BunnyChat:
             'interest_scores': {},
             'relevant_memories': [],
             'mood_score': 0.5,
-            'mood_summary': 'neutral'
+            'mood_summary': 'neutral',
+            'note_context': None
         }
         
         try:
@@ -255,6 +276,22 @@ class BunnyChat:
             if mood_result and self.output_callback:
                 mood_summary = self.mood_integration.get_mood_command_response(user_id)
                 self.output_callback('mood_update', mood_summary)
+            
+            # Process notes
+            note_context = self.notes_integration.process_message_for_notes(
+                message, 
+                user_id,
+                conversation_context=self.chat_history.messages[-10:],  # Last 10 messages
+                user_context=context_data
+            )
+            
+            # Add note context to the context data
+            if note_context and note_context.get('note_context'):
+                context_data['note_context'] = note_context['note_context']
+                
+                # If this was a note action, log it
+                if note_context.get('action') != 'none' and self.output_callback:
+                    self.output_callback('note_action', note_context)
             
             # Run remaining context gathering operations in parallel
             with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
@@ -283,8 +320,25 @@ class BunnyChat:
             mood_data = self._get_mood_data(user_id)
             context_data.update(mood_data)
             
-            # Generate inner thought (this is fast with the 1B model)
-            inner_thought = self.inner_dialogue.think_about_message(message, user_id, context_data)
+            # Generate inner thoughts with enhanced note context
+            inner_thought = None
+            if context_data:
+                # Check for natural note-taking opportunities
+                suggestion_type = self._should_suggest_note_taking(message, context_data)
+                if suggestion_type and not context_data.get('note_context'):
+                    # Add subtle suggestion context for inner dialogue
+                    context_data['note_context'] = {
+                        'action': 'subtle_suggestion',
+                        'suggestion_type': suggestion_type,
+                        'content': message[:100]  # First 100 chars as context
+                    }
+                
+                inner_thought = self.inner_dialogue.think_about_message(
+                    user_message=message,
+                    user_id=user_id,
+                    context_data=context_data,
+                    recent_messages=self.chat_history.messages[-10:]
+                )
             return inner_thought, context_data
             
         except Exception as e:
@@ -622,6 +676,64 @@ class BunnyChat:
         self.chat_history.add_assistant_message(response_text)
         
         return response_text
+
+    def _should_suggest_note_taking(self, message: str, context_data: Dict) -> Optional[str]:
+        """
+        Determine if the user wants to take a quick note/memo.
+        Uses precise patterns to avoid false positives in casual conversation and gaming contexts.
+        
+        Returns:
+            str: 'explicit_note' if note-taking is explicitly requested, None otherwise
+        """
+        message_lower = message.lower().strip()
+        
+        # Skip very short messages
+        if len(message_lower.split()) < 3 and ':' not in message_lower:
+            return None
+            
+        # Common gaming/false positive phrases
+        gaming_phrases = [
+            r'game (?:wants|tells|says)',
+            r'(?:need|have|got) to (?:go|get|find|check|look|talk|speak|ask)',
+            r'remember to (?:go|get|find|check|look|talk|speak|ask)',
+            r'oh (?:i|you|we) (?:need|should|might|can)',
+            r'i (?:think|guess|suppose|believe|feel|wonder)',
+            r'write (?:this|that|it) (?:somewhere|down|in)',
+            r'note (?:to self|that|this|the|down|in)',
+            r'remind (?:me|you|us) (?:to|about|that|when|if)'
+        ]
+        
+        for phrase in gaming_phrases:
+            if re.search(phrase, message_lower):
+                return None
+        
+        # More precise patterns with word boundaries
+        note_triggers = [
+            # Explicit note requests with clear intent
+            r'^(?:write|jot) (?:this|that|it) down(?: for me)?$',
+            r'^take (?:a )?note(?: of this| that| please)?$',
+            r'^make a note(?: of this| that)?$',
+            r'^note to self:',
+            r'^remind me (?:about|that|to)',
+            r'^add (?:this|that|it) to my (?:notes|list)',
+            r'^save (?:this|that|it) (?:in|to) my (?:notes|list)',
+            
+            # Common memo patterns (only at start of message)
+            '^(?:memo|note|reminder|todo|task|idea):',
+            
+            # Direct requests
+            r'^can you (?:please )?(?:write|jot|note) (?:this|that|it) down\?$',
+            r'^i want to (?:make a )?note (?:of|that) ', 
+            r'^let me (?:make a )?note (?:of|that) ',
+            r'^i should (?:write|jot) (?:this|that|it) down$'
+        ]
+        
+        # Only check for note triggers if message starts with them
+        for pattern in note_triggers:
+            if re.match(pattern, message_lower):
+                return 'explicit_note'
+                
+        return None
 
 class BunnyChatMoodIntegration:
     def __init__(self, mood_system):

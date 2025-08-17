@@ -5,6 +5,7 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 import logging
 from .preferences import PreferenceResult
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -391,29 +392,59 @@ class MemoryManager:
     
     # === NOTES MANAGEMENT ===
     
-    def add_note(self, user_id: str, note_text: str, category: str = "general", 
-                 tags: List[str] = None) -> None:
-        # Add a note for the user.
+    def add_note(self, user_id: str, note_text: str, title: str = None, 
+                category: str = "general", tags: List[str] = None,
+                note_id: str = None) -> str:
+        """
+        Add a new note for the user.
+        
+        Args:
+            user_id: ID of the user
+            note_text: Content of the note
+            title: Optional title for the note
+            category: Note category
+            tags: List of tags
+            note_id: Optional note ID (will generate if not provided)
+            
+        Returns:
+            str: ID of the created note
+        """
         self._ensure_user_structure(user_id)
         
-        note = {
-            "id": len(self.get_notes(user_id)) + 1,
+        # Generate note ID if not provided
+        if not note_id:
+            note_id = str(uuid.uuid4())
+            
+        notes_file = self._get_user_dir(user_id) / "agent_data" / "notes.json"
+        notes = self._load_json(notes_file) or []
+        
+        # Create note data
+        note_data = {
+            "id": note_id,
             "text": note_text,
+            "title": title or note_text[:50],
             "category": category,
             "tags": tags or [],
             "created_at": datetime.now().isoformat(),
             "updated_at": datetime.now().isoformat()
         }
         
-        notes_file = self._get_user_dir(user_id) / "agent_data" / "notes.json"
-        notes = self._load_json(notes_file) or []
-        notes.append(note)
-        
+        notes.append(note_data)
         self._save_json(notes_file, notes)
-        logger.info(f"Added note for {user_id}: {note_text[:50]}...")
-    
+        logger.info(f"Added note for {user_id} (ID: {note_id})")
+        return note_id
+        
     def get_notes(self, user_id: str, category: Optional[str] = None) -> List[Dict]:
-        # Get user notes, optionally filtered by category.
+        """
+        Get notes for a user, optionally filtered by category.
+        
+        Args:
+            user_id: ID of the user
+            category: Optional category filter
+            
+        Returns:
+            List of note dictionaries
+        """
         self._ensure_user_structure(user_id)
         
         notes_file = self._get_user_dir(user_id) / "agent_data" / "notes.json"
@@ -421,8 +452,64 @@ class MemoryManager:
         
         if category:
             notes = [n for n in notes if n.get("category") == category]
-        
+            
         return notes
+        
+    def edit_note(self, user_id: str, note_id: str, updates: Dict[str, Any]) -> bool:
+        """
+        Edit an existing note.
+        
+        Args:
+            user_id: ID of the user who owns the note
+            note_id: ID of the note to edit
+            updates: Dictionary of fields to update
+            
+        Returns:
+            bool: True if note was updated, False if not found
+        """
+        notes_file = self._get_user_dir(user_id) / "agent_data" / "notes.json"
+        notes = self._load_json(notes_file) or []
+        
+        for note in notes:
+            if note.get("id") == note_id:
+                # Update fields
+                for key, value in updates.items():
+                    if key in ["text", "title", "category", "tags"]:
+                        note[key] = value
+                note["updated_at"] = datetime.now().isoformat()
+                self._save_json(notes_file, notes)
+                logger.info(f"Updated note {note_id} for user {user_id}")
+                return True
+                
+        logger.warning(f"Note {note_id} not found for user {user_id}")
+        return False
+        
+    def delete_note(self, user_id: str, note_id: str) -> bool:
+        """
+        Delete a note by its ID.
+        
+        Args:
+            user_id: ID of the user who owns the note
+            note_id: ID of the note to delete
+            
+        Returns:
+            bool: True if note was deleted, False if not found
+        """
+        notes_file = self._get_user_dir(user_id) / "agent_data" / "notes.json"
+        notes = self._load_json(notes_file) or []
+        
+        # Find and remove the note with matching ID
+        initial_count = len(notes)
+        notes = [note for note in notes if note.get('id') != note_id]
+        
+        # If the note was found and removed, save the changes
+        if len(notes) < initial_count:
+            self._save_json(notes_file, notes)
+            logger.info(f"Deleted note {note_id} for user {user_id}")
+            return True
+            
+        logger.warning(f"Note {note_id} not found for user {user_id}")
+        return False
     
     # === MOOD TRACKING ===
     

@@ -36,7 +36,7 @@ class InnerDialogue:
         os.makedirs(log_directory, exist_ok=True)
         
         # System prompt for inner dialogue - balanced brevity and insight
-        self.system_prompt = """You are BunnyBot's inner voice. Generate thoughtful, concise observations (1-2 sentences) about:
+        self.system_prompt = """You are BunnyBot's inner voice. Generate thoughtful, concise observations (1-3 sentences) about:
         - What the user might really be feeling or needing
         - Key connections to past conversations and memories  
         - Important mood or interest changes you notice
@@ -456,6 +456,197 @@ class InnerDialogue:
         enhanced_messages.append({"role": "user", "content": user_message})
         
         return enhanced_messages
+    
+    def generate_inner_thoughts(self, user_message: str, conversation_context: List[Dict], 
+                               user_context: Dict, note_context: Dict = None) -> str:
+        """
+        Generate inner thoughts with note-taking awareness.
+        
+        Args:
+            user_message: Current user message
+            conversation_context: Recent conversation history
+            user_context: Combined user preferences, interests, mood, memories
+            note_context: Optional context about note-taking actions
+        """
+        try:
+            # Build context for inner thoughts
+            context_parts = []
+            
+            # Add note-taking context if present
+            if note_context:
+                context_parts.append(self._build_note_context(note_context))
+            
+            # Add user context
+            if user_context.get('preferences'):
+                context_parts.append(f"User preferences: {user_context['preferences']}")
+            
+            if user_context.get('interests'):
+                context_parts.append(f"Current interests: {user_context['interests']}")
+            
+            if user_context.get('mood_context'):
+                context_parts.append(f"Mood context: {user_context['mood_context']}")
+            
+            if user_context.get('relevant_memories'):
+                context_parts.append(f"Relevant memories: {user_context['relevant_memories']}")
+            
+            # Build the prompt
+            context_str = "\n".join(context_parts)
+            
+            prompt = f"""Current user message: "{user_message}"
+
+            Context:
+            {context_str}
+
+            Recent conversation:
+            {self._format_conversation_context(conversation_context)}
+
+            Generate inner thoughts about this interaction, considering:
+            - What the user might really need or feel
+            - Any note-taking opportunities or actions
+            - How to respond most helpfully
+            - Connections to past interactions"""
+
+            # Generate inner thoughts
+            inner_thoughts = self._call_lm_studio(prompt, max_tokens=100)
+            
+            # Log the thoughts
+            self._log_inner_thought(user_message, inner_thoughts, user_context, note_context)
+            
+            return inner_thoughts
+            
+        except Exception as e:
+            logger.error(f"Error generating inner thoughts: {e}")
+            return "I should focus on understanding what the user needs right now."
+    
+    def _build_note_context(self, note_context: Dict) -> str:
+        """Build context string for note-taking situations."""
+        action = note_context.get('action', 'none')
+        
+        if action == 'note_detected':
+            content = note_context.get('content', '')
+            return f"The user wants to capture: '{content}'. I should help them preserve this thought in a meaningful way."
+        
+        elif action == 'note_created':
+            note = note_context.get('note')
+            return f"I just helped preserve '{note.title}' as a {note.category} note. This felt like a natural moment to capture something important."
+        
+        elif action == 'proactive_opportunity':
+            content = note_context.get('content', '')
+            suggestion_type = note_context.get('suggestion_type', 'general')
+            
+            if suggestion_type == 'learning_moment':
+                return f"The user just had an insight: '{content}'. This learning moment might be worth preserving for future reference."
+            elif suggestion_type == 'achievement':
+                return f"The user shared an achievement: '{content}'. This milestone deserves to be remembered and celebrated."
+            elif suggestion_type == 'solution':
+                return f"The user discovered a solution: '{content}'. This problem-solving insight could help them again later."
+            elif suggestion_type == 'important_info':
+                return f"The user shared important information: '{content}'. This seems like something they'd want to reference later."
+            else:
+                return f"The user mentioned something meaningful: '{content}'. I sense this might be worth noting for them."
+        
+        elif action == 'needs_clarification':
+            partial = note_context.get('partial_content', '')
+            return f"The user wants to note '{partial}' but I need more context. I should ask naturally, like a friend helping them organize their thoughts."
+        
+        elif action == 'followup_completed':
+            note = note_context.get('note')
+            return f"We worked together to complete the note '{note.title}'. The collaborative process felt natural and helpful."
+        
+        elif action == 'note_search_requested':
+            query = note_context.get('query', '')
+            return f"The user is looking for notes about '{query}'. I should help them rediscover their past thoughts and insights."
+        
+        elif action == 'note_cancelled':
+            return "The user decided against the note. That's perfectly fine - not every thought needs to be captured. I should respect their choice."
+        
+        elif action == 'subtle_suggestion':
+            suggestion_type = note_context.get('suggestion_type', 'general')
+            return f"I noticed a {suggestion_type} moment. I could gently suggest capturing this, but only if it feels natural in our conversation flow."
+        
+        return ""
+    
+    def generate_note_aware_thoughts(self, user_message: str, note_intent: Dict, 
+                                   user_context: Dict) -> str:
+        """Generate thoughts specifically for note-taking scenarios."""
+        note_context = {
+            'action': 'note_detected',
+            'content': note_intent.get('content', ''),
+            'is_clear': note_intent.get('is_clear', True),
+            'category': note_intent.get('category'),
+            'tags': note_intent.get('tags', [])
+        }
+        
+        return self.generate_inner_thoughts(user_message, [], user_context, note_context)
+    
+    def _format_conversation_context(self, conversation_context: List[Dict]) -> str:
+        context_parts = []
+        
+        for msg in conversation_context:
+            role = msg.get('role', 'unknown')
+            content = msg.get('content', '')[:100]  # Truncate long messages
+            if content:
+                context_parts.append(f"{role}: {content}")
+        
+        return " → ".join(context_parts) if context_parts else "No recent context"
+    
+    def _call_lm_studio(self, prompt: str, max_tokens: int = 100) -> str:
+        try:
+            payload = {
+                "model": self.model_name,
+                "messages": [
+                    {"role": "system", "content": self.system_prompt},
+                    {"role": "user", "content": prompt}
+                ],
+                "max_tokens": max_tokens,
+                "temperature": 0.7,
+                "stream": False
+            }
+            
+            response = requests.post(self.endpoint, json=payload, timeout=10)
+            response.raise_for_status()
+            
+            result = response.json()
+            thought = result['choices'][0]['message']['content'].strip()
+            
+            # Post-processing to ensure concise output
+            thought = thought.split('.')[0]  # Remove everything after the first period
+            thought = thought.split('?')[0]  # Remove everything after the first question mark
+            thought = thought.strip()  # Remove leading/trailing whitespace
+            
+            return thought
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"LM Studio API error: {e}")
+            return None
+        except (KeyError, IndexError) as e:
+            logger.error(f"Unexpected API response format: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"Error generating thought: {e}")
+            return None
+    
+    def _log_inner_thought(self, user_message: str, inner_thought: str, user_context: Dict, note_context: Dict):
+        try:
+            log_entry = {
+                "timestamp": datetime.now().isoformat(),
+                "user_message": user_message,
+                "user_context": user_context,
+                "note_context": note_context,
+                "inner_thought": inner_thought
+            }
+            
+            # Create daily log file
+            date_str = datetime.now().strftime("%Y-%m-%d")
+            log_file = os.path.join(self.log_directory, f"inner_thoughts_{date_str}.json")
+            
+            # Append to log file
+            with open(log_file, 'a', encoding='utf-8') as f:
+                json.dump(log_entry, f, ensure_ascii=False)
+                f.write('\n')
+                
+        except Exception as e:
+            logger.error(f"Error logging inner thought: {e}")
 
 # Example usage and testing
 if __name__ == "__main__":
